@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #1a1a2e;
+  --card: #ffffff;
+  --card-foreground: #1a1a2e;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a2e;
+  --primary: #cc092f;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #1a1a2e;
+  --muted: #f5f5f5;
+  --muted-foreground: #6b7280;
+  --accent: #fff0f2;
+  --accent-foreground: #cc092f;
+  --destructive: #cc092f;
+  --destructive-foreground: #ffffff;
+  --border: #e8e8e8;
+  --input: #e8e8e8;
+  --ring: #cc092f;
+  --radius: 0.5rem;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: #ffffff;
+  color: #1a1a2e;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── BRADESCO NAV HEADER ───────────────────────────────────────────── */
+.bradesco-header {
+  background: linear-gradient(90deg, #8B0A1E 0%, #CC092F 45%, #CC1060 100%);
+  box-shadow: 0 2px 8px rgba(140, 10, 34, 0.30);
+  position: relative;
+}
+
+/* ── BRADESCO CARDS ────────────────────────────────────────────────── */
+.bradesco-card {
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.bradesco-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background-color: #cc092f;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+.bradesco-card:hover::after {
+  transform: scaleX(1);
+}
+.bradesco-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+  transform: translateY(-2px);
+  border-color: #d4d4d4;
+}
+
+/* ── TYPING ANIMATION ───────────────────────────────────────────────── */
+@keyframes typing {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+.typing-dot:nth-child(1) { animation: typing 1.2s infinite 0s; }
+.typing-dot:nth-child(2) { animation: typing 1.2s infinite 0.2s; }
+.typing-dot:nth-child(3) { animation: typing 1.2s infinite 0.4s; }
+
+/* ── PROGRESS BAR ───────────────────────────────────────────────────── */
+[role="progressbar"] > div { background-color: #cc092f !important; }
+
+/* ── SCROLLBAR ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #aaa; }
