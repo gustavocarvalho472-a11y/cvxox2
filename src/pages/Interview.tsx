@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import type { Persona } from '../data/personas'
 import { useChat } from '../hooks/useChat'
 import { useSpeech } from '../hooks/useSpeech'
@@ -37,12 +37,24 @@ export function Interview({ persona, productFocus, onBack, onReset }: Props) {
   const [generatingReport, setGeneratingReport] = useState(false)
   const [showPersonaModal, setShowPersonaModal] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const accent = segmentAccent[persona.segment] ?? '#cc092f'
 
+  const scrollToBottom = useCallback((smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' })
+  }, [])
+
+  useEffect(() => { scrollToBottom() }, [messages, loading, scrollToBottom])
+
+  // Rola ao fundo quando teclado abre no mobile
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    const vv = window.visualViewport
+    if (!vv) return
+    const onResize = () => scrollToBottom(false)
+    vv.addEventListener('resize', onResize)
+    return () => vv.removeEventListener('resize', onResize)
+  }, [scrollToBottom])
 
   const handleSend = async () => {
     const text = input.trim()
@@ -74,7 +86,7 @@ export function Interview({ persona, productFocus, onBack, onReset }: Props) {
 
   return (
     <TooltipProvider>
-      <div className="h-screen flex flex-col overflow-hidden bg-[#f5f5f5]">
+      <div className="h-[100dvh] flex flex-col overflow-hidden bg-white md:bg-[#f5f5f5]">
 
         {/* ── HEADER ───────────────────────────────────────────────── */}
         <header className="bradesco-header flex-shrink-0 px-4">
@@ -146,11 +158,15 @@ export function Interview({ persona, productFocus, onBack, onReset }: Props) {
         </header>
 
         {/* ── CHAT (full width) ─────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col overflow-hidden p-3 min-w-0">
-          <div className="flex-1 bg-white rounded-lg border border-[#e8e8e8] flex flex-col overflow-hidden shadow-sm min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden md:p-3 min-w-0">
+          <div className="flex-1 bg-white md:rounded-lg md:border md:border-[#e8e8e8] flex flex-col overflow-hidden md:shadow-sm min-w-0">
             <div className="h-1 w-full flex-shrink-0" style={{ backgroundColor: accent }} />
 
-            <ScrollArea className="flex-1 px-4 py-4">
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto px-3 py-4 md:px-4"
+              style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            >
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center py-10">
                   {/* Foto clicável no estado vazio */}
@@ -254,10 +270,13 @@ export function Interview({ persona, productFocus, onBack, onReset }: Props) {
                   <div ref={messagesEndRef} />
                 </div>
               )}
-            </ScrollArea>
+            </div>
 
             {/* Input */}
-            <div className="border-t border-[#f0f0f0] px-3 py-2.5 flex items-center gap-1.5">
+            <div
+              className="border-t border-[#f0f0f0] px-3 py-2.5 flex items-center gap-1.5 flex-shrink-0 bg-white"
+              style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' }}
+            >
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="sm" onClick={() => setTtsEnabled(!ttsEnabled)}
@@ -273,14 +292,16 @@ export function Interview({ persona, productFocus, onBack, onReset }: Props) {
               <input
                 ref={inputRef}
                 type="text"
+                inputMode="text"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={isListening ? '🎙 Ouvindo...' : 'Digite sua pergunta...'}
                 disabled={loading}
-                className="flex-1 min-w-0 bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl px-4 py-2.5 text-sm
+                className="flex-1 min-w-0 bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl px-4 py-2.5
                   text-[#1a1a2e] placeholder:text-[#bbb] focus:outline-none focus:ring-2
                   focus:ring-[#cc092f]/20 focus:border-[#cc092f]/40 transition-colors disabled:opacity-50"
+                style={{ fontSize: '16px' }}
               />
 
               <Tooltip>
@@ -306,9 +327,6 @@ export function Interview({ persona, productFocus, onBack, onReset }: Props) {
               </Button>
             </div>
 
-            <p className="text-center text-[10px] text-[#ccc] pb-1.5">
-              Enter para enviar · Shift+Enter para nova linha
-            </p>
           </div>
         </div>
       </div>
