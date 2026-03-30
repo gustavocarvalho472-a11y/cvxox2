@@ -21,6 +21,7 @@ export interface MonthlyRevenue { month: string; nova: number; expandida: number
 export interface NPSRenewal { month: string; nps: number; renewal: number }
 export interface SegmentRevenue { label: string; value: number; pct: number; delta: number }
 export interface ChannelPenetration { label: string; pct: number; clients: number; delta: number }
+export interface RegionData { label: string; abbr: string; sales: number; nps: number; delta: number }
 
 export interface DashboardData {
   kpi: KPIData
@@ -33,6 +34,7 @@ export interface DashboardData {
   npsRenewal: NPSRenewal[]
   segmentRevenue: SegmentRevenue[]
   channelPenetration: ChannelPenetration[]
+  regionData: RegionData[]
 }
 
 export const businessLabels: Record<BusinessUnit, string> = {
@@ -112,18 +114,17 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       { label: 'Empresas', atual: 218, meta: 250 },
     ],
     npsJornada: [
-      { label: 'Prospecção', nps: 74, meta: 70 },
-      { label: 'Onboarding', nps: 68, meta: 72 },
-      { label: 'Uso regular', nps: 62, meta: 70 },
-      { label: 'Renovação', nps: 55, meta: 70 },
-      { label: 'Pós-suporte', nps: 42, meta: 65 },
+      { label: 'Pós contratação',         nps: 72, meta: 70 },
+      { label: 'Cobertura / assistências', nps: 64, meta: 70 },
+      { label: 'Sinistro',                nps: 44, meta: 65 },
+      { label: 'Renovação',               nps: 58, meta: 70 },
+      { label: 'Cancelamento',            nps: 36, meta: 60 },
     ],
     sla: [
-      { label: 'Abertura de conta', avg: 2.4, meta: 2.0, unit: 'dias' },
-      { label: '1ª resposta suporte', avg: 4.2, meta: 2.0, unit: 'h' },
-      { label: 'Resolução sinistro', avg: 38, meta: 28, unit: 'h' },
-      { label: 'Análise de crédito', avg: 18, meta: 12, unit: 'h' },
-      { label: 'Atualização cadastral', avg: 1.8, meta: 1.0, unit: 'dias' },
+      { label: 'Análise de sinistro',  avg: 28,  meta: 24,  unit: 'h' },
+      { label: 'Resposta ao sinistro', avg: 4.2, meta: 2.0, unit: 'h' },
+      { label: 'Resolução',            avg: 38,  meta: 28,  unit: 'h' },
+      { label: 'Pagamento',            avg: 5.2, meta: 3.0, unit: 'dias' },
     ],
     churnByTenure: [
       { label: '0–6 meses', churnPct: 8.4, churnR: 42000 },
@@ -154,6 +155,13 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       { label: 'Rede',        pct: 38, clients: 7083,  delta: -1.2 },
       { label: 'Consultores', pct: 22, clients: 4101,  delta: 8.4 },
     ],
+    regionData: [
+      { label: 'Sudeste',      abbr: 'SE', sales: 1890000, nps: 66, delta: 4.2 },
+      { label: 'Sul',          abbr: 'S',  sales: 780000,  nps: 64, delta: 2.8 },
+      { label: 'Nordeste',     abbr: 'NE', sales: 630000,  nps: 58, delta: 1.4 },
+      { label: 'Norte',        abbr: 'N',  sales: 420000,  nps: 54, delta: -0.8 },
+      { label: 'Centro-Oeste', abbr: 'CO', sales: 480000,  nps: 60, delta: 3.1 },
+    ],
   },
 
   seguros: {
@@ -178,18 +186,17 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       { label: 'Empresas', atual: 240, meta: 280 },
     ],
     npsJornada: [
-      { label: 'Prospecção', nps: 76, meta: 72 },
-      { label: 'Onboarding', nps: 70, meta: 74 },
-      { label: 'Uso regular', nps: 65, meta: 72 },
-      { label: 'Renovação', nps: 60, meta: 72 },
-      { label: 'Pós-sinistro', nps: 48, meta: 65 },
+      { label: 'Pós contratação',         nps: 74, meta: 70 },
+      { label: 'Cobertura / assistências', nps: 66, meta: 70 },
+      { label: 'Sinistro',                nps: 48, meta: 65 },
+      { label: 'Renovação',               nps: 62, meta: 72 },
+      { label: 'Cancelamento',            nps: 38, meta: 60 },
     ],
     sla: [
-      { label: 'Emissão de apólice', avg: 1.8, meta: 1.5, unit: 'dias' },
-      { label: '1ª resposta suporte', avg: 3.6, meta: 2.0, unit: 'h' },
-      { label: 'Resolução sinistro', avg: 32, meta: 24, unit: 'h' },
-      { label: 'Análise de risco', avg: 14, meta: 10, unit: 'h' },
-      { label: 'Renovação automática', avg: 0.8, meta: 0.5, unit: 'dias' },
+      { label: 'Análise de sinistro',  avg: 24,  meta: 20,  unit: 'h' },
+      { label: 'Resposta ao sinistro', avg: 3.6, meta: 2.0, unit: 'h' },
+      { label: 'Resolução',            avg: 32,  meta: 24,  unit: 'h' },
+      { label: 'Pagamento',            avg: 4.2, meta: 3.0, unit: 'dias' },
     ],
     churnByTenure: [
       { label: '0–6 meses', churnPct: 5.2, churnR: 18000 },
@@ -220,6 +227,13 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       { label: 'Rede',        pct: 35, clients: 2870, delta: -0.8 },
       { label: 'Consultores', pct: 28, clients: 2296, delta: 9.2 },
     ],
+    regionData: [
+      { label: 'Sudeste',      abbr: 'SE', sales: 810000, nps: 70, delta: 5.1 },
+      { label: 'Sul',          abbr: 'S',  sales: 324000, nps: 68, delta: 3.4 },
+      { label: 'Nordeste',     abbr: 'NE', sales: 270000, nps: 60, delta: 2.1 },
+      { label: 'Norte',        abbr: 'N',  sales: 162000, nps: 56, delta: 0.4 },
+      { label: 'Centro-Oeste', abbr: 'CO', sales: 234000, nps: 62, delta: 3.8 },
+    ],
   },
 
   consorcios: {
@@ -244,18 +258,17 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       { label: 'Empresas', atual: 186, meta: 220 },
     ],
     npsJornada: [
-      { label: 'Prospecção', nps: 70, meta: 65 },
-      { label: 'Contratação', nps: 62, meta: 67 },
-      { label: 'Parcelas ativas', nps: 55, meta: 65 },
-      { label: 'Contemplação', nps: 48, meta: 65 },
-      { label: 'Pós-contemplação', nps: 38, meta: 60 },
+      { label: 'Pós contratação',         nps: 66, meta: 65 },
+      { label: 'Cobertura / assistências', nps: 58, meta: 65 },
+      { label: 'Sinistro',                nps: 42, meta: 60 },
+      { label: 'Renovação',               nps: 54, meta: 65 },
+      { label: 'Cancelamento',            nps: 32, meta: 55 },
     ],
     sla: [
-      { label: 'Cadastro consórcio', avg: 3.2, meta: 2.5, unit: 'dias' },
-      { label: '1ª resposta suporte', avg: 5.1, meta: 2.0, unit: 'h' },
-      { label: 'Análise contemplação', avg: 48, meta: 36, unit: 'h' },
-      { label: 'Transferência cota', avg: 22, meta: 16, unit: 'h' },
-      { label: 'Cancelamento cota', avg: 2.4, meta: 1.5, unit: 'dias' },
+      { label: 'Análise de sinistro',  avg: 36,  meta: 28,  unit: 'h' },
+      { label: 'Resposta ao sinistro', avg: 5.1, meta: 2.0, unit: 'h' },
+      { label: 'Resolução',            avg: 48,  meta: 36,  unit: 'h' },
+      { label: 'Pagamento',            avg: 6.4, meta: 4.0, unit: 'dias' },
     ],
     churnByTenure: [
       { label: '0–6 meses', churnPct: 9.8, churnR: 14000 },
@@ -285,6 +298,13 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       { label: 'PGS',         pct: 42, clients: 2474, delta: 1.9 },
       { label: 'Rede',        pct: 45, clients: 2651, delta: 0.6 },
       { label: 'Consultores', pct: 32, clients: 1885, delta: 5.8 },
+    ],
+    regionData: [
+      { label: 'Sudeste',      abbr: 'SE', sales: 495000, nps: 60, delta: 2.8 },
+      { label: 'Sul',          abbr: 'S',  sales: 198000, nps: 58, delta: 1.6 },
+      { label: 'Nordeste',     abbr: 'NE', sales: 165000, nps: 52, delta: 0.8 },
+      { label: 'Norte',        abbr: 'N',  sales: 99000,  nps: 48, delta: -1.2 },
+      { label: 'Centro-Oeste', abbr: 'CO', sales: 143000, nps: 54, delta: 2.1 },
     ],
   },
 
@@ -352,6 +372,13 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       { label: 'Rede',        pct: 42, clients: 6926,  delta: -2.4 },
       { label: 'Consultores', pct: 18, clients: 2968,  delta: 11.2 },
     ],
+    regionData: [
+      { label: 'Sudeste',      abbr: 'SE', sales: 495000, nps: 64, delta: 5.2 },
+      { label: 'Sul',          abbr: 'S',  sales: 220000, nps: 62, delta: 3.8 },
+      { label: 'Nordeste',     abbr: 'NE', sales: 176000, nps: 56, delta: 1.8 },
+      { label: 'Norte',        abbr: 'N',  sales: 99000,  nps: 52, delta: -0.4 },
+      { label: 'Centro-Oeste', abbr: 'CO', sales: 110000, nps: 58, delta: 3.2 },
+    ],
   },
 
   outros: {
@@ -417,6 +444,13 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       { label: 'PGS',         pct: 38, clients: 798,  delta: 1.4 },
       { label: 'Rede',        pct: 30, clients: 630,  delta: -0.6 },
       { label: 'Consultores', pct: 28, clients: 588,  delta: 6.2 },
+    ],
+    regionData: [
+      { label: 'Sudeste',      abbr: 'SE', sales: 90000,  nps: 62, delta: 2.1 },
+      { label: 'Sul',          abbr: 'S',  sales: 40000,  nps: 60, delta: 1.4 },
+      { label: 'Nordeste',     abbr: 'NE', sales: 32000,  nps: 54, delta: 0.6 },
+      { label: 'Norte',        abbr: 'N',  sales: 18000,  nps: 50, delta: -0.8 },
+      { label: 'Centro-Oeste', abbr: 'CO', sales: 20000,  nps: 56, delta: 1.8 },
     ],
   },
 }

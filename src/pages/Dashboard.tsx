@@ -5,9 +5,9 @@ import {
   businessUnits, businessLabels, periods, periodLabels, productsByBusiness,
   getDashboardData, getFilterLabel, computeRevPreserved,
   type BusinessUnit, type Period, type DashboardData,
-  type FunnelStage, type LTVSegment, type NPSJornada,
+  type FunnelStage, type NPSJornada,
   type SLAItem, type NPSRenewal,
-  type SegmentRevenue, type ChannelPenetration,
+  type ChannelPenetration, type RegionData,
 } from '../data/dashboardData'
 
 interface Props { onBack: () => void }
@@ -156,6 +156,87 @@ function LineSVG({ series, labels }: {
   )
 }
 
+
+// ── BRAZIL MAP ─────────────────────────────────────────────────────────────
+
+function BrazilMapChart({ data }: { data: RegionData[] }) {
+  const byAbbr = Object.fromEntries(data.map(d => [d.abbr, d]))
+
+  // [abbr, x, y, w, h] — schematic, roughly matches Brazil macro-regions
+  const blocks: [string, number, number, number, number][] = [
+    ['N',   8,  6, 100, 62],
+    ['NE', 113,  6,  62, 78],
+    ['CO',   8, 72,  78, 68],
+    ['SE',  91, 88,  84, 52],
+    ['S',   18,144,  70, 52],
+  ]
+
+  return (
+    <div className="flex gap-2 h-full min-h-0">
+      <svg viewBox="0 0 180 200" className="flex-1 min-w-0">
+        {blocks.map(([abbr, x, y, w, h]) => {
+          const r = byAbbr[abbr]
+          if (!r) return null
+          const fill = npsColor(r.nps)
+          const cx = x + w / 2
+          const cy = y + h / 2
+          return (
+            <g key={abbr}>
+              <rect x={x} y={y} width={w} height={h} rx="5"
+                fill={fill} fillOpacity="0.12" stroke={fill} strokeWidth="1.5" />
+              <text x={cx} y={cy - 10} textAnchor="middle" fontSize="11"
+                fontWeight="bold" fill={fill}>{abbr}</text>
+              <text x={cx} y={cy + 3} textAnchor="middle" fontSize="8.5"
+                fontWeight="600" fill="#374151">{fmtR(r.sales)}</text>
+              <text x={cx} y={cy + 15} textAnchor="middle" fontSize="8" fill="#888">
+                NPS {r.nps}
+                {r.delta >= 0 ? ` ▲${r.delta}` : ` ▼${Math.abs(r.delta)}`}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+      {/* Side legend */}
+      <div className="flex flex-col justify-center gap-1.5 w-[68px] flex-shrink-0">
+        {data.map(r => (
+          <div key={r.abbr} className="rounded-lg px-2 py-1.5 border"
+            style={{ borderColor: npsColor(r.nps), backgroundColor: `${npsColor(r.nps)}10` }}>
+            <p className="text-[9px] font-bold" style={{ color: npsColor(r.nps) }}>{r.abbr}</p>
+            <p className="text-[9px] font-semibold text-[#374151]">NPS {r.nps}</p>
+            <p className="text-[8px] text-[#aaa] leading-none">{fmtR(r.sales)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── NPS POR REGIÃO ──────────────────────────────────────────────────────────
+
+function NPSRegionChart({ data }: { data: RegionData[] }) {
+  return (
+    <div className="flex flex-col gap-2 justify-between h-full">
+      {data.map(r => (
+        <div key={r.label} className="space-y-0.5">
+          <div className="flex justify-between items-baseline">
+            <span className="text-[10px] font-medium text-[#555] truncate max-w-[55%]">{r.label}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold" style={{ color: npsColor(r.nps) }}>{r.nps}</span>
+              <span className={`text-[9px] font-semibold ${r.delta >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                {r.delta > 0 ? '+' : ''}{r.delta}pp
+              </span>
+            </div>
+          </div>
+          <div className="h-2.5 bg-[#f5f5f5] rounded-full overflow-hidden">
+            <div className="h-full rounded-full"
+              style={{ width: `${r.nps}%`, backgroundColor: npsColor(r.nps), opacity: 0.85 }} />
+          </div>
+          <p className="text-[8px] text-[#bbb] leading-none">{fmtR(r.sales)}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 // ── HORIZONTAL BAR ─────────────────────────────────────────────────────────
 
@@ -353,43 +434,9 @@ export function Dashboard({ onBack }: Props) {
           {/* RIGHT: Charts 3×2 */}
           <div className="grid grid-cols-3 grid-rows-2 gap-2.5 overflow-hidden min-h-0">
 
-            {/* 1. LTV por segmento */}
-            <ChartCard title="LTV por Segmento PJ" subtitle="Atual vs Meta (R$k) · +5pp NPS">
-              <div className="flex flex-col gap-2 justify-between h-full">
-                {data.ltvSegmentos.map((seg: LTVSegment) => {
-                  const improved = Math.round(seg.atual * 1.08)
-                  const max = Math.max(...data.ltvSegmentos.map((s: LTVSegment) => s.meta)) * 1.1
-                  return (
-                    <div key={seg.label} className="space-y-1">
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[10px] font-semibold text-[#374151]">{seg.label}</span>
-                        <span className="text-[9px] text-[#bbb]">R${seg.atual}k / meta R${seg.meta}k</span>
-                      </div>
-                      <div className="relative h-3 bg-[#f5f5f5] rounded-full">
-                        <div className="absolute top-0 bottom-0 w-px bg-[#ccc] z-10"
-                          style={{ left: `${Math.min((seg.meta / max) * 100, 100)}%` }} />
-                        <div className="absolute top-0.5 bottom-0.5 rounded-full bg-[#CC092F]"
-                          style={{ width: `${(seg.atual / max) * 100}%` }} />
-                        <div className="absolute top-0 bottom-0 rounded-full border border-dashed border-[#CC092F]/50 bg-[#CC092F]/10"
-                          style={{ width: `${(improved / max) * 100}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
-                <div className="flex gap-3 mt-auto pt-1">
-                  {[
-                    { color: '#CC092F', label: 'Atual' },
-                    { color: '#CC092F', label: '+5pp NPS', dashed: true },
-                    { color: '#ccc', label: 'Meta' },
-                  ].map(l => (
-                    <div key={l.label} className="flex items-center gap-1">
-                      <div className={`w-2.5 h-1.5 rounded-sm ${l.dashed ? 'border border-dashed border-[#CC092F]/50 bg-[#CC092F]/10' : ''}`}
-                        style={!l.dashed ? { backgroundColor: l.color } : {}} />
-                      <span className="text-[9px] text-[#999]">{l.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {/* 1. Vendas por Região */}
+            <ChartCard title="Vendas por Região" subtitle="Volume de vendas e NPS por macro-região">
+              <BrazilMapChart data={data.regionData} />
             </ChartCard>
 
             {/* 2. NPS por etapa */}
@@ -428,7 +475,12 @@ export function Dashboard({ onBack }: Props) {
               />
             </ChartCard>
 
-            {/* 4. Penetração por canal */}
+            {/* 4. NPS por Região */}
+            <ChartCard title="NPS por Região" subtitle="Índice de satisfação e evolução por macro-região">
+              <NPSRegionChart data={data.regionData} />
+            </ChartCard>
+
+            {/* 5. Penetração por canal */}
             <ChartCard title="Penetração por Canal" subtitle="% da base PJ ativa por canal de relacionamento">
               <div className="flex flex-col gap-2 justify-between h-full">
                 {data.channelPenetration.map((item: ChannelPenetration) => (
@@ -449,38 +501,6 @@ export function Dashboard({ onBack }: Props) {
                     </div>
                   </div>
                 ))}
-              </div>
-            </ChartCard>
-
-            {/* 5. Receita por segmento */}
-            <ChartCard title="Composição da Receita" subtitle="Por segmento PJ — MEI · Negócios · Empresas">
-              <div className="flex flex-col gap-2 justify-between h-full">
-                {data.segmentRevenue.map((seg: SegmentRevenue, i: number) => {
-                  const COLORS = ['#8B0A1E', '#CC092F', '#D12344']
-                  const maxPct = 100
-                  return (
-                    <div key={seg.label} className="space-y-1">
-                      <div className="flex justify-between items-baseline">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-sm flex-shrink-0"
-                            style={{ backgroundColor: COLORS[i] }} />
-                          <span className="text-[10px] font-semibold text-[#374151]">{seg.label}</span>
-                        </div>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-sm font-bold text-[#1a1a2e]">{fmtR(seg.value)}</span>
-                          <span className="text-[9px] font-semibold text-[#CC092F]">{seg.pct}%</span>
-                          <span className={`text-[9px] font-semibold ${seg.delta >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-                            {seg.delta > 0 ? '+' : ''}{seg.delta}%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="h-3 bg-[#f5f5f5] rounded-full overflow-hidden">
-                        <div className="h-full rounded-full"
-                          style={{ width: `${(seg.pct / maxPct) * 100}%`, backgroundColor: COLORS[i] }} />
-                      </div>
-                    </div>
-                  )
-                })}
               </div>
             </ChartCard>
 
