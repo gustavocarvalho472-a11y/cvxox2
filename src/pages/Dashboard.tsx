@@ -50,109 +50,64 @@ function KPICard({ label, value, delta, deltaLabel, sub, invertDelta, accent }: 
   )
 }
 
-// ── CASCADE FUNNEL ─────────────────────────────────────────────────────────
-
-const STAGE_BG = ['#8B0A1E', '#A8152E', '#CC092F', '#CC3060']
+// ── SIMPLE FUNNEL ──────────────────────────────────────────────────────────
 
 function CascadeFunnel({ stages }: { stages: FunnelStage[] }) {
-  const firstVal = stages[0]?.value ?? 1
+  // Only first 3 stages
+  const s = stages.slice(0, 3)
+  const top = s[0]?.value ?? 1
+  const conv12 = s[1]?.convRate ?? Math.round((s[1]?.value / top) * 100)
+  const conv23 = s[2]?.convRate ?? Math.round((s[2]?.value / (s[1]?.value ?? 1)) * 100)
+  const totalConv = Math.round((s[2]?.value / top) * 100)
+
+  const COLORS = ['#8B0A1E', '#CC092F', '#CC3060']
 
   return (
-    <div className="flex flex-col w-full gap-0">
-      {stages.map((stage, i) => {
-        const isLast = i === stages.length - 1
-        const ratio = isLast ? 1 : stage.value / firstVal
-        const barPct = Math.max(ratio * 100, 26)
-        const bgColor = STAGE_BG[Math.min(i, STAGE_BG.length - 1)]
-        const dropPct = i > 0 && !isLast
-          ? Math.round((1 - stage.value / stages[i - 1].value) * 100)
-          : null
+    <div className="flex gap-3 h-full min-h-0">
 
-        return (
-          <div key={i} className="w-full">
-
-            {/* ── CONNECTOR ───────────────────────────────────────────── */}
-            {i > 0 && (
-              <div className="flex items-stretch h-7">
-                {/* vertical line on the left */}
-                <div className="flex flex-col items-center w-7 flex-shrink-0">
-                  <div className="w-px flex-1 bg-[#e0e0e0]" />
-                </div>
-                {/* conv badge + drop */}
-                <div className="flex items-center gap-2 flex-1 pl-1">
-                  {stage.convRate !== undefined && (
-                    <div className="flex items-center gap-1 bg-[#fff8f9] border border-[#ffd0d8] rounded-full px-2 py-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#CC092F]" />
-                      <span className="text-[9px] font-bold text-[#CC092F]">{stage.convRate}%</span>
-                      <span className="text-[9px] text-[#ccc]">conv.</span>
-                    </div>
-                  )}
-                  {dropPct !== null && (
-                    <span className="text-[9px] text-[#bbb] ml-auto pr-1">
-                      −{dropPct}% drop
-                    </span>
-                  )}
+      {/* ── BARS ──────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col justify-center gap-3 min-w-0">
+        {s.map((stage, i) => {
+          const pct = Math.max((stage.value / top) * 100, 12)
+          return (
+            <div key={i} className="space-y-1.5">
+              <div className="flex justify-between items-baseline gap-1">
+                <span className="text-[10px] font-semibold text-[#555] truncate">{stage.label}</span>
+                <div className="flex items-baseline gap-1 flex-shrink-0">
+                  <span className="text-sm font-bold text-[#1a1a2e]">{fmtN(stage.value)}</span>
+                  <span className={`text-[9px] font-semibold ${stage.delta >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                    {stage.delta > 0 ? '+' : ''}{stage.delta}%
+                  </span>
                 </div>
               </div>
-            )}
-
-            {/* ── STAGE ───────────────────────────────────────────────── */}
-            {isLast ? (
-              /* Revenue — full-width gradient card */
-              <div className="rounded-xl overflow-hidden"
-                style={{ background: 'linear-gradient(120deg,#8B0A1E 0%,#CC092F 55%,#CC1060 100%)' }}>
-                <div className="px-3.5 py-2.5 flex justify-between items-center">
-                  <div>
-                    <p className="text-[9px] text-white/60 font-medium uppercase tracking-wide mb-0.5">
-                      {stage.label}
-                    </p>
-                    <p className="text-lg font-bold text-white leading-none">{fmtR(stage.value)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] text-white/50 mb-0.5">vs anterior</p>
-                    <p className="text-sm font-bold text-white">
-                      {stage.delta > 0 ? '+' : ''}{stage.delta}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Regular stage — shrinking bar */
-              <div className="relative h-11 rounded-xl overflow-hidden bg-[#f5f5f5]">
-                {/* Colored fill — shrinks with each stage */}
+              <div className="h-7 bg-[#f5f5f5] rounded-lg overflow-hidden">
                 <div
-                  className="absolute inset-y-0 left-0 rounded-xl"
-                  style={{ width: `${barPct}%`, backgroundColor: bgColor }}
+                  className="h-full rounded-lg transition-all duration-500"
+                  style={{ width: `${pct}%`, backgroundColor: COLORS[i] }}
                 />
-                {/* Text layer — always full width, always readable */}
-                <div className="absolute inset-0 flex items-center px-3 gap-2">
-                  {/* Step number */}
-                  <span className={`text-[9px] font-bold w-4 flex-shrink-0 ${barPct > 18 ? 'text-white/60' : 'text-[#ccc]'}`}>
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  {/* Label */}
-                  <span className={`text-[10px] font-semibold flex-1 min-w-0 truncate ${barPct > 35 ? 'text-white' : 'text-[#555]'}`}>
-                    {stage.label}
-                  </span>
-                  {/* Value + delta */}
-                  <div className="flex-shrink-0 text-right flex items-baseline gap-1">
-                    <span className={`text-sm font-bold ${barPct > 75 ? 'text-white' : 'text-[#1a1a2e]'}`}>
-                      {fmtN(stage.value)}
-                    </span>
-                    <span className={`text-[9px] font-semibold ${
-                      stage.delta >= 0
-                        ? (barPct > 75 ? 'text-green-300' : 'text-emerald-500')
-                        : 'text-red-400'
-                    }`}>
-                      {stage.delta > 0 ? '+' : ''}{stage.delta}%
-                    </span>
-                  </div>
-                </div>
               </div>
-            )}
-          </div>
-        )
-      })}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── RATES ─────────────────────────────────────────────────────── */}
+      <div className="w-[72px] flex flex-col justify-center gap-2 flex-shrink-0">
+        <div className="rounded-xl border border-[#ffd0d8] bg-[#fff8f9] p-2.5 text-center">
+          <p className="text-[8px] text-[#ccc] font-medium leading-none mb-1">Sim → Prop</p>
+          <p className="text-lg font-bold text-[#CC092F] leading-none">{conv12}%</p>
+        </div>
+        <div className="rounded-xl border border-[#ffd0d8] bg-[#fff8f9] p-2.5 text-center">
+          <p className="text-[8px] text-[#ccc] font-medium leading-none mb-1">Prop → Cont</p>
+          <p className="text-lg font-bold text-[#CC092F] leading-none">{conv23}%</p>
+        </div>
+        <div className="rounded-xl p-2.5 text-center"
+          style={{ background: 'linear-gradient(135deg,#8B0A1E 0%,#CC092F 100%)' }}>
+          <p className="text-[8px] text-white/60 font-medium leading-none mb-1">Conv. Total</p>
+          <p className="text-lg font-bold text-white leading-none">{totalConv}%</p>
+        </div>
+      </div>
+
     </div>
   )
 }
