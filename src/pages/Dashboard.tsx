@@ -50,108 +50,110 @@ function KPICard({ label, value, delta, deltaLabel, sub, invertDelta, accent }: 
   )
 }
 
-// ── SVG FUNNEL ─────────────────────────────────────────────────────────────
+// ── CASCADE FUNNEL ─────────────────────────────────────────────────────────
 
-const FUNNEL_COLORS = ['#8B0A1E', '#A8142E', '#CC092F', '#CC3060']
+const STAGE_BG = ['#8B0A1E', '#A8152E', '#CC092F', '#CC3060']
 
-function FunnelSVG({ stages }: { stages: FunnelStage[] }) {
-  const VW = 260
-  const n = stages.length
-  const STAGE_H = 56
-  const BADGE_H = 22
-  const TOTAL_H = n * STAGE_H + (n - 1) * BADGE_H
-
-  const maxVal = stages[0]?.value ?? 1
-  const stageW = (i: number) => {
-    if (i === stages.length - 1) return VW * 0.62
-    return Math.max((stages[i].value / maxVal) * VW, VW * 0.32)
-  }
-  const stageX = (i: number) => (VW - stageW(i)) / 2
-  const stageY = (i: number) => i * (STAGE_H + BADGE_H)
+function CascadeFunnel({ stages }: { stages: FunnelStage[] }) {
+  const firstVal = stages[0]?.value ?? 1
 
   return (
-    <svg
-      viewBox={`0 0 ${VW} ${TOTAL_H}`}
-      className="w-full"
-      style={{ flex: 1, minHeight: 0 }}
-      preserveAspectRatio="xMidYMid meet"
-    >
-      <defs>
-        {stages.slice(0, -1).map((_, i) => (
-          <linearGradient key={i} id={`fg${i}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={FUNNEL_COLORS[Math.min(i, FUNNEL_COLORS.length - 1)]} />
-            <stop offset="100%" stopColor={FUNNEL_COLORS[Math.min(i + 1, FUNNEL_COLORS.length - 1)]} />
-          </linearGradient>
-        ))}
-      </defs>
-
+    <div className="flex flex-col w-full gap-0">
       {stages.map((stage, i) => {
         const isLast = i === stages.length - 1
-        const yi = stageY(i)
-        const wi = stageW(i)
-        const xi = stageX(i)
-        const cx = VW / 2
-        const wNext = isLast ? wi : stageW(i + 1)
-        const xNext = isLast ? xi : stageX(i + 1)
-        const yBot = yi + STAGE_H
-
-        const pts = [
-          `${xi.toFixed(1)},${yi}`,
-          `${(xi + wi).toFixed(1)},${yi}`,
-          `${(xNext + wNext).toFixed(1)},${yBot}`,
-          `${xNext.toFixed(1)},${yBot}`,
-        ].join(' ')
+        const ratio = isLast ? 1 : stage.value / firstVal
+        const barPct = Math.max(ratio * 100, 26)
+        const bgColor = STAGE_BG[Math.min(i, STAGE_BG.length - 1)]
+        const dropPct = i > 0 && !isLast
+          ? Math.round((1 - stage.value / stages[i - 1].value) * 100)
+          : null
 
         return (
-          <g key={i}>
+          <div key={i} className="w-full">
+
+            {/* ── CONNECTOR ───────────────────────────────────────────── */}
+            {i > 0 && (
+              <div className="flex items-stretch h-7">
+                {/* vertical line on the left */}
+                <div className="flex flex-col items-center w-7 flex-shrink-0">
+                  <div className="w-px flex-1 bg-[#e0e0e0]" />
+                </div>
+                {/* conv badge + drop */}
+                <div className="flex items-center gap-2 flex-1 pl-1">
+                  {stage.convRate !== undefined && (
+                    <div className="flex items-center gap-1 bg-[#fff8f9] border border-[#ffd0d8] rounded-full px-2 py-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#CC092F]" />
+                      <span className="text-[9px] font-bold text-[#CC092F]">{stage.convRate}%</span>
+                      <span className="text-[9px] text-[#ccc]">conv.</span>
+                    </div>
+                  )}
+                  {dropPct !== null && (
+                    <span className="text-[9px] text-[#bbb] ml-auto pr-1">
+                      −{dropPct}% drop
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── STAGE ───────────────────────────────────────────────── */}
             {isLast ? (
-              <rect x={xi} y={yi} width={wi} height={STAGE_H} rx="6"
-                fill="white" stroke="#CC092F" strokeWidth="1.5" />
+              /* Revenue — full-width gradient card */
+              <div className="rounded-xl overflow-hidden"
+                style={{ background: 'linear-gradient(120deg,#8B0A1E 0%,#CC092F 55%,#CC1060 100%)' }}>
+                <div className="px-3.5 py-2.5 flex justify-between items-center">
+                  <div>
+                    <p className="text-[9px] text-white/60 font-medium uppercase tracking-wide mb-0.5">
+                      {stage.label}
+                    </p>
+                    <p className="text-lg font-bold text-white leading-none">{fmtR(stage.value)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] text-white/50 mb-0.5">vs anterior</p>
+                    <p className="text-sm font-bold text-white">
+                      {stage.delta > 0 ? '+' : ''}{stage.delta}%
+                    </p>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <polygon points={pts} fill={`url(#fg${i})`} />
+              /* Regular stage — shrinking bar */
+              <div className="relative h-11 rounded-xl overflow-hidden bg-[#f5f5f5]">
+                {/* Colored fill — shrinks with each stage */}
+                <div
+                  className="absolute inset-y-0 left-0 rounded-xl"
+                  style={{ width: `${barPct}%`, backgroundColor: bgColor }}
+                />
+                {/* Text layer — always full width, always readable */}
+                <div className="absolute inset-0 flex items-center px-3 gap-2">
+                  {/* Step number */}
+                  <span className={`text-[9px] font-bold w-4 flex-shrink-0 ${barPct > 18 ? 'text-white/60' : 'text-[#ccc]'}`}>
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  {/* Label */}
+                  <span className={`text-[10px] font-semibold flex-1 min-w-0 truncate ${barPct > 35 ? 'text-white' : 'text-[#555]'}`}>
+                    {stage.label}
+                  </span>
+                  {/* Value + delta */}
+                  <div className="flex-shrink-0 text-right flex items-baseline gap-1">
+                    <span className={`text-sm font-bold ${barPct > 75 ? 'text-white' : 'text-[#1a1a2e]'}`}>
+                      {fmtN(stage.value)}
+                    </span>
+                    <span className={`text-[9px] font-semibold ${
+                      stage.delta >= 0
+                        ? (barPct > 75 ? 'text-green-300' : 'text-emerald-500')
+                        : 'text-red-400'
+                    }`}>
+                      {stage.delta > 0 ? '+' : ''}{stage.delta}%
+                    </span>
+                  </div>
+                </div>
+              </div>
             )}
-
-            {/* Label */}
-            <text x={cx} y={yi + STAGE_H * 0.36} fontSize="8" textAnchor="middle"
-              fill={isLast ? '#777' : 'rgba(255,255,255,0.8)'}
-              fontFamily="Plus Jakarta Sans, system-ui, sans-serif">
-              {stage.label}
-            </text>
-
-            {/* Value */}
-            <text x={cx} y={yi + STAGE_H * 0.72} fontSize="13" textAnchor="middle"
-              fill={isLast ? '#CC092F' : 'white'} fontWeight="700"
-              fontFamily="Plus Jakarta Sans, system-ui, sans-serif">
-              {isLast ? fmtR(stage.value) : fmtN(stage.value)}
-            </text>
-
-            {/* Delta — right side */}
-            <text x={xi + wi - 5} y={yi + STAGE_H * 0.55} fontSize="7.5" textAnchor="end"
-              fill={isLast ? '#bbb' : 'rgba(255,255,255,0.65)'}
-              fontFamily="Plus Jakarta Sans, system-ui, sans-serif">
-              {stage.delta > 0 ? '+' : ''}{stage.delta}%
-            </text>
-
-            {/* Conversion badge */}
-            {!isLast && stages[i + 1]?.convRate !== undefined && (
-              <g>
-                <rect x={cx - 18} y={yBot + 4} width={36} height={14} rx="7"
-                  fill="white" stroke="#CC092F" strokeWidth="0.8" />
-                <text x={cx} y={yBot + 13.5} fontSize="8" textAnchor="middle"
-                  fill="#CC092F" fontWeight="700"
-                  fontFamily="Plus Jakarta Sans, system-ui, sans-serif">
-                  {stages[i + 1].convRate}% conv
-                </text>
-              </g>
-            )}
-            {!isLast && stages[i + 1]?.convRate === undefined && (
-              <line x1={cx} y1={yBot + 2} x2={cx} y2={yBot + BADGE_H - 2}
-                stroke="#ddd" strokeWidth="1" strokeDasharray="2 2" />
-            )}
-          </g>
+          </div>
         )
       })}
-    </svg>
+    </div>
   )
 }
 
@@ -423,8 +425,8 @@ export function Dashboard({ onBack }: Props) {
               <p className="text-[11px] font-semibold text-[#1a1a2e]">Funil de Resultados</p>
               <p className="text-[9px] text-[#bbb] mt-0.5">Ciclo de vida do cliente PJ</p>
             </div>
-            <div className="flex-1 min-h-0 flex items-center justify-center">
-              <FunnelSVG stages={data.funnelStages} />
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <CascadeFunnel stages={data.funnelStages} />
             </div>
             {/* Argumento inline */}
             <div className="flex-shrink-0 mt-2 border-t border-[#f0f0f0] pt-2 flex gap-2 items-start">
