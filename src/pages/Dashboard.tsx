@@ -6,7 +6,8 @@ import {
   getDashboardData, getFilterLabel, computeRevPreserved,
   type BusinessUnit, type Period, type DashboardData,
   type FunnelStage, type LTVSegment, type NPSJornada,
-  type SLAItem, type ChurnByTenure, type MonthlyRevenue, type NPSRenewal,
+  type SLAItem, type NPSRenewal,
+  type SegmentRevenue, type ChannelPenetration,
 } from '../data/dashboardData'
 
 interface Props { onBack: () => void }
@@ -155,47 +156,6 @@ function LineSVG({ series, labels }: {
   )
 }
 
-// ── STACKED BAR SVG ────────────────────────────────────────────────────────
-
-function StackedBarSVG({ data }: { data: MonthlyRevenue[] }) {
-  const W = 300, H = 80, PL = 4, PR = 4, PT = 4, PB = 16
-  const chartW = W - PL - PR
-  const chartH = H - PT - PB
-  const maxTotal = Math.max(...data.map(d => d.nova + d.expandida + d.recuperada)) * 1.05
-  const gap = chartW / data.length
-  const barW = gap * 0.65
-  const xOf = (i: number) => PL + i * gap + (gap - barW) / 2
-  const hOf = (v: number) => (v / maxTotal) * chartH
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-      {[0, 0.5, 1].map(t => (
-        <line key={t} x1={PL} x2={W - PR}
-          y1={PT + chartH * (1 - t)} y2={PT + chartH * (1 - t)}
-          stroke="#f0f0f0" strokeWidth="1" />
-      ))}
-      {data.map((d, i) => {
-        const total = d.nova + d.expandida + d.recuperada
-        const y0 = PT + chartH - hOf(total)
-        const h0 = hOf(d.nova)
-        const h1 = hOf(d.expandida)
-        const h2 = hOf(d.recuperada)
-        return (
-          <g key={i}>
-            <rect x={xOf(i)} y={y0} width={barW} height={h0} fill="#96001F" rx="1" />
-            <rect x={xOf(i)} y={y0 + h0} width={barW} height={h1} fill="#CC092F" />
-            <rect x={xOf(i)} y={y0 + h0 + h1} width={barW} height={h2} fill="#D12344" />
-          </g>
-        )
-      })}
-      {data.map((d, i) => i % 3 === 0 && (
-        <text key={i} x={xOf(i) + barW / 2} y={H - 3} fontSize="7" fill="#bbb" textAnchor="middle">
-          {d.month}
-        </text>
-      ))}
-    </svg>
-  )
-}
 
 // ── HORIZONTAL BAR ─────────────────────────────────────────────────────────
 
@@ -468,39 +428,60 @@ export function Dashboard({ onBack }: Props) {
               />
             </ChartCard>
 
-            {/* 4. Churn por tenure */}
-            <ChartCard title="Churn por Tempo de Carteira" subtitle="% churn (vermelho) · R$ em risco (rosa)"
-              legend={[{ color: '#CC092F', label: '% Churn' }, { color: '#fecaca', label: 'R$ em risco' }]}>
-              <div className="flex flex-col gap-1.5 justify-between h-full">
-                {data.churnByTenure.map((item: ChurnByTenure) => {
-                  const maxPct = Math.max(...data.churnByTenure.map((d: ChurnByTenure) => d.churnPct))
-                  const maxR = Math.max(...data.churnByTenure.map((d: ChurnByTenure) => d.churnR))
-                  return (
-                    <div key={item.label} className="space-y-0.5">
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[10px] font-medium text-[#555]">{item.label}</span>
-                        <span className="text-[9px]">
-                          <span className="font-bold text-[#CC092F]">{item.churnPct}%</span>
-                          <span className="text-[#bbb] mx-1">·</span>
-                          <span className="text-[#ef4444]">{fmtR(item.churnR)}</span>
+            {/* 4. Penetração por canal */}
+            <ChartCard title="Penetração por Canal" subtitle="% da base PJ ativa por canal de relacionamento">
+              <div className="flex flex-col gap-2 justify-between h-full">
+                {data.channelPenetration.map((item: ChannelPenetration) => (
+                  <div key={item.label} className="space-y-1">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-[10px] font-semibold text-[#374151]">{item.label}</span>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-sm font-bold text-[#CC092F]">{item.pct}%</span>
+                        <span className="text-[9px] text-[#bbb]">{fmtN(item.clients)} clientes</span>
+                        <span className={`text-[9px] font-semibold ${item.delta >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                          {item.delta > 0 ? '+' : ''}{item.delta}%
                         </span>
                       </div>
-                      <div className="relative h-2.5 bg-[#f5f5f5] rounded-full overflow-hidden">
-                        <div className="absolute inset-0 rounded-full bg-[#fecaca]"
-                          style={{ width: `${(item.churnR / maxR) * 100}%` }} />
-                        <div className="absolute top-0.5 bottom-0.5 rounded-full bg-[#CC092F]"
-                          style={{ width: `${(item.churnPct / maxPct) * 100}%` }} />
+                    </div>
+                    <div className="h-3 bg-[#f5f5f5] rounded-full overflow-hidden">
+                      <div className="h-full rounded-full"
+                        style={{ width: `${item.pct}%`, backgroundColor: '#CC092F', opacity: 0.85 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ChartCard>
+
+            {/* 5. Receita por segmento */}
+            <ChartCard title="Composição da Receita" subtitle="Por segmento PJ — MEI · Negócios · Empresas">
+              <div className="flex flex-col gap-2 justify-between h-full">
+                {data.segmentRevenue.map((seg: SegmentRevenue, i: number) => {
+                  const COLORS = ['#8B0A1E', '#CC092F', '#D12344']
+                  const maxPct = 100
+                  return (
+                    <div key={seg.label} className="space-y-1">
+                      <div className="flex justify-between items-baseline">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-sm flex-shrink-0"
+                            style={{ backgroundColor: COLORS[i] }} />
+                          <span className="text-[10px] font-semibold text-[#374151]">{seg.label}</span>
+                        </div>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-sm font-bold text-[#1a1a2e]">{fmtR(seg.value)}</span>
+                          <span className="text-[9px] font-semibold text-[#CC092F]">{seg.pct}%</span>
+                          <span className={`text-[9px] font-semibold ${seg.delta >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                            {seg.delta > 0 ? '+' : ''}{seg.delta}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-3 bg-[#f5f5f5] rounded-full overflow-hidden">
+                        <div className="h-full rounded-full"
+                          style={{ width: `${(seg.pct / maxPct) * 100}%`, backgroundColor: COLORS[i] }} />
                       </div>
                     </div>
                   )
                 })}
               </div>
-            </ChartCard>
-
-            {/* 5. Receita empilhada */}
-            <ChartCard title="Composição da Receita" subtitle="Nova · Expandida · Recuperada — 12 meses"
-              legend={[{ color: '#96001F', label: 'Nova' }, { color: '#CC092F', label: 'Expandida' }, { color: '#D12344', label: 'Recuperada' }]}>
-              <StackedBarSVG data={data.monthlyRevenue} />
             </ChartCard>
 
             {/* 6. NPS × Renovação */}

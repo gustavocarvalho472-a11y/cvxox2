@@ -19,6 +19,8 @@ export interface SLAItem { label: string; avg: number; meta: number; unit: strin
 export interface ChurnByTenure { label: string; churnPct: number; churnR: number }
 export interface MonthlyRevenue { month: string; nova: number; expandida: number; recuperada: number }
 export interface NPSRenewal { month: string; nps: number; renewal: number }
+export interface SegmentRevenue { label: string; value: number; pct: number; delta: number }
+export interface ChannelPenetration { label: string; pct: number; clients: number; delta: number }
 
 export interface DashboardData {
   kpi: KPIData
@@ -29,6 +31,8 @@ export interface DashboardData {
   churnByTenure: ChurnByTenure[]
   monthlyRevenue: MonthlyRevenue[]
   npsRenewal: NPSRenewal[]
+  segmentRevenue: SegmentRevenue[]
+  channelPenetration: ChannelPenetration[]
 }
 
 export const businessLabels: Record<BusinessUnit, string> = {
@@ -139,6 +143,17 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       nps: Math.round(58 + i * 0.5 + Math.sin(i * 0.7) * 2),
       renewal: Math.round(73 + i * 0.4 + Math.cos(i * 0.5) * 1.5),
     })),
+    segmentRevenue: [
+      { label: 'MEI',      value: 840000,  pct: 20, delta: 8.2 },
+      { label: 'Negócios', value: 2100000, pct: 50, delta: 7.1 },
+      { label: 'Empresas', value: 1260000, pct: 30, delta: 5.4 },
+    ],
+    channelPenetration: [
+      { label: 'PDPJ',        pct: 68, clients: 12675, delta: 4.2 },
+      { label: 'PGS',         pct: 45, clients: 8388,  delta: 2.8 },
+      { label: 'Rede',        pct: 38, clients: 7083,  delta: -1.2 },
+      { label: 'Consultores', pct: 22, clients: 4101,  delta: 8.4 },
+    ],
   },
 
   seguros: {
@@ -194,6 +209,17 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       nps: Math.round(62 + i * 0.5 + Math.sin(i * 0.7) * 2),
       renewal: Math.round(79 + i * 0.3 + Math.cos(i * 0.5) * 1.2),
     })),
+    segmentRevenue: [
+      { label: 'MEI',      value: 360000, pct: 20, delta: 6.1 },
+      { label: 'Negócios', value: 900000, pct: 50, delta: 5.8 },
+      { label: 'Empresas', value: 540000, pct: 30, delta: 3.4 },
+    ],
+    channelPenetration: [
+      { label: 'PDPJ',        pct: 72, clients: 5904, delta: 5.1 },
+      { label: 'PGS',         pct: 48, clients: 3936, delta: 3.2 },
+      { label: 'Rede',        pct: 35, clients: 2870, delta: -0.8 },
+      { label: 'Consultores', pct: 28, clients: 2296, delta: 9.2 },
+    ],
   },
 
   consorcios: {
@@ -249,6 +275,17 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       nps: Math.round(52 + i * 0.4 + Math.sin(i * 0.7) * 2),
       renewal: Math.round(63 + i * 0.35 + Math.cos(i * 0.5) * 1.2),
     })),
+    segmentRevenue: [
+      { label: 'MEI',      value: 220000, pct: 20, delta: 4.1 },
+      { label: 'Negócios', value: 550000, pct: 50, delta: 3.8 },
+      { label: 'Empresas', value: 330000, pct: 30, delta: 2.9 },
+    ],
+    channelPenetration: [
+      { label: 'PDPJ',        pct: 58, clients: 3417, delta: 3.4 },
+      { label: 'PGS',         pct: 42, clients: 2474, delta: 1.9 },
+      { label: 'Rede',        pct: 45, clients: 2651, delta: 0.6 },
+      { label: 'Consultores', pct: 32, clients: 1885, delta: 5.8 },
+    ],
   },
 
   cielo: {
@@ -304,6 +341,17 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       nps: Math.round(57 + i * 0.5 + Math.sin(i * 0.7) * 2),
       renewal: Math.round(72 + i * 0.45 + Math.cos(i * 0.5) * 1.4),
     })),
+    segmentRevenue: [
+      { label: 'MEI',      value: 220000, pct: 20, delta: 8.4 },
+      { label: 'Negócios', value: 550000, pct: 50, delta: 7.8 },
+      { label: 'Empresas', value: 330000, pct: 30, delta: 6.1 },
+    ],
+    channelPenetration: [
+      { label: 'PDPJ',        pct: 75, clients: 12368, delta: 6.2 },
+      { label: 'PGS',         pct: 38, clients: 6266,  delta: 2.1 },
+      { label: 'Rede',        pct: 42, clients: 6926,  delta: -2.4 },
+      { label: 'Consultores', pct: 18, clients: 2968,  delta: 11.2 },
+    ],
   },
 
   outros: {
@@ -359,6 +407,17 @@ const baseDataMap: Record<BusinessUnit, DashboardData> = {
       nps: Math.round(54 + i * 0.4 + Math.sin(i * 0.7) * 2),
       renewal: Math.round(68 + i * 0.3 + Math.cos(i * 0.5) * 1.2),
     })),
+    segmentRevenue: [
+      { label: 'MEI',      value: 40000,  pct: 20, delta: 3.2 },
+      { label: 'Negócios', value: 100000, pct: 50, delta: 2.8 },
+      { label: 'Empresas', value: 60000,  pct: 30, delta: 1.9 },
+    ],
+    channelPenetration: [
+      { label: 'PDPJ',        pct: 52, clients: 1092, delta: 2.8 },
+      { label: 'PGS',         pct: 38, clients: 798,  delta: 1.4 },
+      { label: 'Rede',        pct: 30, clients: 630,  delta: -0.6 },
+      { label: 'Consultores', pct: 28, clients: 588,  delta: 6.2 },
+    ],
   },
 }
 
