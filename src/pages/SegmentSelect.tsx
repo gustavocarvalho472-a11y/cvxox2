@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { segments } from '../data/personas'
 import type { SegmentId } from '../data/personas'
-import { Settings, ChevronRight, Briefcase, TrendingUp, Building2 } from 'lucide-react'
+import { Settings, ChevronRight, Briefcase, TrendingUp, Building2, BarChart2 } from 'lucide-react'
 import { BradescoLogo } from '../components/BradescoLogo'
 import { BradescoGrafismo } from '../components/BradescoGrafismo'
 
 interface Props {
   onSelect: (segmentId: SegmentId) => void
   onOpenConfig?: () => void
+  onOpenDashboard?: () => void
 }
 
 // Apenas a família vermelha Bradesco — tons do brand kit
@@ -41,7 +42,7 @@ const segmentConfig: Record<SegmentId, {
   },
 }
 
-export function SegmentSelect({ onSelect, onOpenConfig }: Props) {
+export function SegmentSelect({ onSelect, onOpenConfig, onOpenDashboard }: Props) {
   const [hovered, setHovered] = useState<SegmentId | null>(null)
 
   return (
@@ -59,15 +60,26 @@ export function SegmentSelect({ onSelect, onOpenConfig }: Props) {
               <span className="text-white/70 text-xs font-medium">Pesquisa PJ</span>
             </div>
           </div>
-          {onOpenConfig && (
-            <button
-              onClick={onOpenConfig}
-              className="flex items-center gap-1.5 text-white/70 hover:text-white text-xs font-medium transition-colors py-1.5 px-3 rounded hover:bg-white/10"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              Configurar
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {onOpenDashboard && (
+              <button
+                onClick={onOpenDashboard}
+                className="flex items-center gap-1.5 text-white/70 hover:text-white text-xs font-medium transition-colors py-1.5 px-3 rounded hover:bg-white/10"
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </button>
+            )}
+            {onOpenConfig && (
+              <button
+                onClick={onOpenConfig}
+                className="flex items-center gap-1.5 text-white/70 hover:text-white text-xs font-medium transition-colors py-1.5 px-3 rounded hover:bg-white/10"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Configurar</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 

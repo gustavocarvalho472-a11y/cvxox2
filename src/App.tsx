@@ -3,9 +3,10 @@ import { SegmentSelect } from './pages/SegmentSelect'
 import { PersonaSelect } from './pages/PersonaSelect'
 import { Interview } from './pages/Interview'
 import { ConfigPanel } from './pages/ConfigPanel'
+import { Dashboard } from './pages/Dashboard'
 import type { SegmentId, Persona } from './data/personas'
 
-type AppView = 'segments' | 'personas' | 'interview' | 'config'
+type AppView = 'segments' | 'personas' | 'interview' | 'config' | 'dashboard'
 
 export default function App() {
   const [view, setView] = useState<AppView>('segments')
@@ -29,6 +30,7 @@ export default function App() {
             setView('personas')
           }}
           onOpenConfig={() => setView('config')}
+          onOpenDashboard={() => setView('dashboard')}
         />
       )}
       {view === 'personas' && selectedSegment && (
@@ -52,6 +54,9 @@ export default function App() {
       )}
       {view === 'config' && (
         <ConfigPanel onBack={() => setView('segments')} />
+      )}
+      {view === 'dashboard' && (
+        <Dashboard onBack={() => setView('segments')} />
       )}
     </div>
   )
