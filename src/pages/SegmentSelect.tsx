@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { segments } from '../data/personas'
 import type { SegmentId } from '../data/personas'
-import { Settings, ChevronRight, Briefcase, TrendingUp, Building2, BarChart2 } from 'lucide-react'
+import { Settings, ChevronRight, Briefcase, TrendingUp, Building2, BarChart2, FolderOpen } from 'lucide-react'
 import { BradescoLogo } from '../components/BradescoLogo'
 import { BradescoGrafismo } from '../components/BradescoGrafismo'
 
@@ -9,6 +9,8 @@ interface Props {
   onSelect: (segmentId: SegmentId) => void
   onOpenConfig?: () => void
   onOpenDashboard?: () => void
+  onOpenProjects?: () => void
+  projectCount?: number
 }
 
 // Apenas a família vermelha Bradesco — tons do brand kit
@@ -42,7 +44,7 @@ const segmentConfig: Record<SegmentId, {
   },
 }
 
-export function SegmentSelect({ onSelect, onOpenConfig, onOpenDashboard }: Props) {
+export function SegmentSelect({ onSelect, onOpenConfig, onOpenDashboard, onOpenProjects, projectCount }: Props) {
   const [hovered, setHovered] = useState<SegmentId | null>(null)
 
   return (
@@ -61,6 +63,20 @@ export function SegmentSelect({ onSelect, onOpenConfig, onOpenDashboard }: Props
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {onOpenProjects && (
+              <button
+                onClick={onOpenProjects}
+                className="flex items-center gap-1.5 text-white/70 hover:text-white text-xs font-medium transition-colors py-1.5 px-3 rounded hover:bg-white/10"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Projetos</span>
+                {projectCount != null && projectCount > 0 && (
+                  <span className="bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                    {projectCount}
+                  </span>
+                )}
+              </button>
+            )}
             {onOpenDashboard && (
               <button
                 onClick={onOpenDashboard}

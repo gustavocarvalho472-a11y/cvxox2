@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Printer, RotateCcw, MessageSquare, Target, Lightbulb, Quote } from 'lucide-react'
+import { Printer, RotateCcw, MessageSquare, Target, Lightbulb, Quote, FolderPlus, Check } from 'lucide-react'
+import { useState } from 'react'
 
 interface Props {
   persona: Persona
@@ -16,9 +17,16 @@ interface Props {
   messageCount: number
   onClose: () => void
   onNewInterview: () => void
+  onSave?: () => void
 }
 
-export function InsightReportModal({ persona, report, messageCount, onClose, onNewInterview }: Props) {
+export function InsightReportModal({ persona, report, messageCount, onClose, onNewInterview, onSave }: Props) {
+  const [saved, setSaved] = useState(false)
+
+  const handleSave = () => {
+    onSave?.()
+    setSaved(true)
+  }
   if (!report) return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="bg-white rounded-2xl border-zinc-200">
@@ -138,11 +146,23 @@ export function InsightReportModal({ persona, report, messageCount, onClose, onN
         </ScrollArea>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-zinc-100 flex gap-2 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-zinc-100 flex gap-2 flex-shrink-0 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1.5 text-zinc-600">
             <Printer className="w-3.5 h-3.5" />
             Exportar
           </Button>
+          {onSave && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSave}
+              disabled={saved}
+              className={`gap-1.5 ${saved ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-zinc-600'}`}
+            >
+              {saved ? <Check className="w-3.5 h-3.5" /> : <FolderPlus className="w-3.5 h-3.5" />}
+              {saved ? 'Salvo!' : 'Salvar projeto'}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={onClose} className="flex-1">
             Continuar entrevista
           </Button>

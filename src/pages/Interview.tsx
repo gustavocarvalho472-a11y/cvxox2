@@ -20,6 +20,7 @@ interface Props {
   productFocus?: string
   onBack: () => void
   onReset: () => void
+  onSaveProject?: (messages: import('../hooks/useChat').Message[], insights: InsightReport) => void
 }
 
 const segmentAccent: Record<string, string> = {
@@ -28,7 +29,7 @@ const segmentAccent: Record<string, string> = {
   empresas: '#96001F',
 }
 
-export function Interview({ persona, productFocus, onBack, onReset }: Props) {
+export function Interview({ persona, productFocus, onBack, onReset, onSaveProject }: Props) {
   const { messages, loading, error, sendMessage, generateInsights } = useChat(persona, productFocus)
   const { isListening, ttsEnabled, setTtsEnabled, startListening, stopListening, speak } = useSpeech()
   const [input, setInput] = useState('')
@@ -446,6 +447,9 @@ export function Interview({ persona, productFocus, onBack, onReset }: Props) {
           messageCount={messages.length}
           onClose={() => setShowReport(false)}
           onNewInterview={onReset}
+          onSave={reportData && onSaveProject
+            ? () => onSaveProject(messages, reportData)
+            : undefined}
         />
       )}
     </TooltipProvider>
