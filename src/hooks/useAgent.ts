@@ -1,0 +1,148 @@
+import { useCallback, useRef, useState } from 'react'
+import Anthropic from '@anthropic-ai/sdk'
+import { SYSTEM_PROMPT } from '../lib/agentPrompt'
+
+export interface AgentImage {
+  data: string // base64 sem prefixo
+  mediaType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'
+}
+
+export interface DisplayMessage {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  imagePreview?: string
+}
+
+const MODEL = 'claude-sonnet-5'
+const MAX_CONTINUATIONS = 4
+
+function getApiKey(userKey: string): string {
+  return userKey || (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined) || ''
+}
+
+let idCounter = 0
+const nextId = () => `m${Date.now()}_${idCounter++}`
+
+export function useAgent(apiKeyFromSettings: string, buildContext: () => string) {
+  const [messages, setMessages] = useState<DisplayMessage[]>([])
+  const [streaming, setStreaming] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const historyRef = useRef<Anthropic.MessageParam[]>([])
+
+  const hasKey = getApiKey(apiKeyFromSettings).length > 0
+
+  const sendMessage = useCallback(
+    async (text: string, image?: AgentImage) => {
+      const apiKey = getApiKey(apiKeyFromSettings)
+      if (!apiKey) {
+        setError(
+          'Configure sua chave da API Anthropic nas Configurações (ícone de engrenagem) para usar o agente.',
+        )
+        return
+      }
+      if (!text.trim() && !image) return
+      setError(null)
+
+      const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
+
+      const userContent: Anthropic.ContentBlockParam[] = []
+      if (image) {
+        userContent.push({
+          type: 'image',
+          source: { type: 'base64', media_type: image.mediaType, data: image.data },
+        })
+      }
+      userContent.push({ type: 'text', text: text.trim() || 'Analise este gráfico.' })
+
+      historyRef.current = [...historyRef.current, { role: 'user', content: userContent }]
+      const userMsg: DisplayMessage = {
+        id: nextId(),
+        role: 'user',
+        text: text.trim() || '(print do gráfico)',
+        imagePreview: image ? `data:${image.mediaType};base64,${image.data}` : undefined,
+      }
+      const assistantId = nextId()
+      setMessages(prev => [...prev, userMsg, { id: assistantId, role: 'assistant', text: '' }])
+      setStreaming(true)
+
+      // Prefixo estável cacheado; contexto vivo (conta/viés/níveis) vem depois
+      const system: Anthropic.TextBlockParam[] = [
+        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: buildContext() },
+      ]
+
+      let accumulated = ''
+      const appendText = (delta: string) => {
+        accumulated += delta
+        setMessages(prev =>
+          prev.map(m => (m.id === assistantId ? { ...m, text: accumulated } : m)),
+        )
+      }
+
+      try {
+        for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
+          const stream = client.messages.stream({
+            model: MODEL,
+            max_tokens: 6000,
+            system,
+            messages: historyRef.current,
+            tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }],
+          })
+
+          stream.on('streamEvent', event => {
+            if (
+              event.type === 'content_block_start' &&
+              event.content_block.type === 'server_tool_use'
+            ) {
+              setSearching(true)
+            }
+            if (
+              event.type === 'content_block_delta' &&
+              event.delta.type === 'text_delta'
+            ) {
+              setSearching(false)
+              appendText(event.delta.text)
+            }
+          })
+
+          const final = await stream.finalMessage()
+          historyRef.current = [...historyRef.current, { role: 'assistant', content: final.content }]
+
+          if (final.stop_reason !== 'pause_turn') break
+          // pause_turn: ferramenta server-side no meio do turno — reenvia para continuar
+        }
+      } catch (err) {
+        let friendly = 'Erro ao falar com o agente.'
+        if (err instanceof Anthropic.AuthenticationError) {
+          friendly = 'Chave da API inválida. Verifique nas Configurações.'
+        } else if (err instanceof Anthropic.RateLimitError) {
+          friendly = 'Limite de requisições atingido. Aguarde um momento e tente de novo.'
+        } else if (err instanceof Anthropic.APIError) {
+          friendly = `Erro da API (${err.status}): ${err.message}`
+        } else if (err instanceof Error) {
+          friendly = err.message
+        }
+        setError(friendly)
+        // remove a bolha vazia do assistente se nada foi gerado
+        if (!accumulated) {
+          setMessages(prev => prev.filter(m => m.id !== assistantId))
+          historyRef.current = historyRef.current.slice(0, -1)
+        }
+      } finally {
+        setStreaming(false)
+        setSearching(false)
+      }
+    },
+    [apiKeyFromSettings, buildContext],
+  )
+
+  const clear = useCallback(() => {
+    setMessages([])
+    historyRef.current = []
+    setError(null)
+  }, [])
+
+  return { messages, streaming, searching, error, hasKey, sendMessage, clear }
+}

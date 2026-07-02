@@ -1,73 +1,40 @@
-# React + TypeScript + Vite
+# 🥇 Gold Desk — Cockpit XAUUSD para o FTMO Challenge
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Plataforma pessoal de trading focada em **passar as duas fases do FTMO** operando ouro (XAUUSD).
+O app não é um dashboard de informação — é um cockpit organizado pela **rotina do dia de trade**,
+com gestão de risco na frente de tudo (o que reprova traders não é análise, é violação de risco).
 
-Currently, two official plugins are available:
+## As 3 telas da rotina
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Tela | O que faz |
+| --- | --- |
+| **Pré-Sessão** | Checklist macro obrigatório (DXY, US10Y, VIX, petróleo, geopolítica) → calcula o viés do dia; calendário econômico e notícias (TradingView); mini-charts dos drivers |
+| **Sala de Trade** | Gráfico XAUUSD (TradingView) + **validador de trade**: calcula lote correto, R:R e dispara guard-rails (risco excessivo, notícia em <30 min, contra o viés, overtrading, revenge) + mapa de níveis de liquidez |
+| **Pós-Sessão** | Diário de trades com estatística por setup e por sessão, export CSV/JSON e review do dia feito pelo agente |
 
-## React Compiler
+**Header fixo**: perda diária restante (5%), drawdown total (10%), progresso da meta da fase e
+quantos trades cabem no risco — sempre visível.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+**Agente copiloto** (drawer lateral): Claude com prompt de *risk manager de mesa* — analisa prints
+do gráfico (SMC/Wyckoff/supply & demand), busca notícias em tempo real (web search) e recebe em
+toda mensagem o estado real da conta, o viés do dia e os níveis marcados. Ele valida disciplina;
+não dá sinal.
 
-## Expanding the ESLint configuration
+## Rodando
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Para o agente: cole sua chave da API Anthropic em **Configurações** (fica só no `localStorage` do
+seu navegador). Todos os dados (conta, trades, níveis, checklist) também ficam apenas no navegador.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Stack
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+React 19 · Vite · TypeScript · Tailwind 4 · shadcn/ui · widgets TradingView (gratuitos) ·
+`@anthropic-ai/sdk` (browser-side, modelo `claude-sonnet-5` com vision + web search)
+
+## Deploy
+
+Push na `main` → GitHub Actions → GitHub Pages (`vite.config.ts` usa base `/cvxox2/`).
