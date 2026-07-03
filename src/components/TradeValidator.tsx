@@ -23,7 +23,9 @@ function RailIcon({ severity }: { severity: GuardRail['severity'] }) {
 }
 
 export function TradeValidator({ app, onAskAgent }: Props) {
-  const { account, state, biasInfo, checklistDone, highImpactSoon, setHighImpactSoon } = app
+  const { account, state, biasInfo, checklistDone, highImpactSoon, setHighImpactSoon, calendar } = app
+  const autoNewsSoon = calendar.activeEvent !== null
+  const newsSoon = highImpactSoon || autoNewsSoon
   const [direction, setDirection] = useState<TradeDirection>('long')
   const [entry, setEntry] = useState('')
   const [stop, setStop] = useState('')
@@ -56,9 +58,9 @@ export function TradeValidator({ app, onAskAgent }: Props) {
         direction,
         bias: biasInfo.bias,
         checklistDone,
-        highImpactSoon,
+        highImpactSoon: newsSoon,
       }),
-    [account, state, calc, direction, biasInfo.bias, checklistDone, highImpactSoon],
+    [account, state, calc, direction, biasInfo.bias, checklistDone, newsSoon],
   )
 
   const blocked = rails.some(r => r.severity === 'block')
@@ -164,15 +166,24 @@ export function TradeValidator({ app, onAskAgent }: Props) {
           calc.error && <p className="text-xs text-amber-400">{calc.error}</p>
         )}
 
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-          <input
-            type="checkbox"
-            checked={highImpactSoon}
-            onChange={e => setHighImpactSoon(e.target.checked)}
-            className="h-4 w-4 accent-red-500"
-          />
-          Evento de alto impacto (NFP/CPI/FOMC) em menos de 30 min
-        </label>
+        {autoNewsSoon && calendar.activeEvent ? (
+          <p className="rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-2 text-xs text-red-200">
+            🔴 Detectado no calendário: <strong>{calendar.activeEvent.title}</strong> ({calendar.activeEvent.country}){' '}
+            {calendar.minutesToActive !== null && calendar.minutesToActive >= 0
+              ? `em ${calendar.minutesToActive} min`
+              : 'em andamento'}
+          </p>
+        ) : (
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={highImpactSoon}
+              onChange={e => setHighImpactSoon(e.target.checked)}
+              className="h-4 w-4 accent-red-500"
+            />
+            Evento de alto impacto (NFP/CPI/FOMC) em menos de 30 min
+          </label>
+        )}
 
         {calc.valid && rails.length > 0 && (
           <ul className="space-y-1.5">

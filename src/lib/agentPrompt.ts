@@ -7,6 +7,8 @@ import type {
 } from '../types/trading'
 import type { AccountState } from './ftmo'
 import type { GoldPrice } from './marketData'
+import type { EconEvent } from './calendar'
+import { fmtBrt } from './calendar'
 import { fmtSignedUsd, fmtUsd, phaseLabel, tradePnl } from './ftmo'
 import { MACRO_DRIVERS, biasLabel } from '../data/macroDrivers'
 import { SESSION_LABELS, currentSession } from '../data/sessions'
@@ -53,10 +55,11 @@ export interface AgentContext {
   levels: KeyLevel[]
   trades: Trade[]
   goldPrice: GoldPrice | null
+  econEvents: EconEvent[] // relevantes nas próximas 24h
 }
 
 export function buildContextBlock(ctx: AgentContext): string {
-  const { account, state, checklist, bias, biasFilled, levels, goldPrice } = ctx
+  const { account, state, checklist, bias, biasFilled, levels, goldPrice, econEvents } = ctx
   const session = currentSession()
   const lines: string[] = []
 
@@ -92,6 +95,19 @@ export function buildContextBlock(ctx: AgentContext): string {
     if (checklist.note) lines.push(`- Nota do trader: ${checklist.note}`)
   } else {
     lines.push('VIÉS MACRO DO DIA: checklist NÃO preenchido — o trader está sem plano macro hoje. Aponte isso se ele pedir validação de trade.')
+  }
+
+  if (econEvents.length > 0) {
+    lines.push('')
+    lines.push('CALENDÁRIO ECONÔMICO — PRÓXIMAS 24H (horários BRT):')
+    for (const e of econEvents.slice(0, 10)) {
+      const extra = [e.forecast && `prev. ${e.forecast}`, e.previous && `ant. ${e.previous}`]
+        .filter(Boolean)
+        .join(', ')
+      lines.push(
+        `- ${fmtBrt(e.date, true)} — ${e.title} (${e.country}, impacto ${e.impact === 'High' ? 'ALTO' : 'médio'}${extra ? `; ${extra}` : ''})`,
+      )
+    }
   }
 
   if (levels.length > 0) {

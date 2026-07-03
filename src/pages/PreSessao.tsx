@@ -8,6 +8,7 @@ import { MACRO_DRIVERS, STRUCTURAL_DRIVERS, biasLabel } from '../data/macroDrive
 import { EconomicCalendar, MiniChart, NewsTimeline } from '../components/tradingview/widgets'
 import { todayStr } from '../lib/ftmo'
 import { QUICK_PROMPTS } from '../lib/agentPrompt'
+import { fmtBrt } from '../lib/calendar'
 
 interface Props {
   app: AppState
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export function PreSessao({ app, onAskAgent }: Props) {
-  const { checklist, setChecklist, biasInfo, checklistDone } = app
+  const { checklist, setChecklist, biasInfo, checklistDone, calendar } = app
 
   const setReading = (driverId: string, optionId: string) => {
     const base = checklist ?? { date: todayStr(), readings: {}, note: '' }
@@ -36,6 +37,17 @@ export function PreSessao({ app, onAskAgent }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-4">
+      {calendar.todayHigh.length > 0 && (
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <strong>🔴 Hoje é dia de evento de alto impacto (USD):</strong>{' '}
+          {calendar.todayHigh
+            .map(e => `${e.title} às ${fmtBrt(e.date)} BRT${e.forecast ? ` (prev. ${e.forecast})` : ''}`)
+            .join(' · ')}
+          {' — '}reduza o risco ou não opere a janela do evento. O validador vai bloquear
+          entradas nos 30 min antes de cada um.
+        </div>
+      )}
+
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-200">
         <strong>Ritual pré-sessão:</strong> confira o calendário do dia, leia os 5 drivers e
         registre seu viés antes de abrir o gráfico. Em dia de NFP, CPI ou FOMC, o ouro anda $30–60
