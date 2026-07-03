@@ -70,10 +70,10 @@ export function AccountBar({ account, state, gold, autoBias, onBiasClick, onOpen
             <Badge
               variant="outline"
               className="ml-1 gap-1.5 border-amber-500/40 bg-amber-500/10 text-xs text-amber-300 tabular-nums"
-              title={`gold-api · atualizado ${new Date(gold.updatedAt).toLocaleTimeString('pt-BR')}`}
+              title={`${gold.source === 'PAXG' ? 'Coinbase PAXG (≈XAU)' : 'gold-api'} · atualizado ${new Date(gold.updatedAt).toLocaleTimeString('pt-BR')}`}
             >
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-              XAUUSD ${gold.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {gold.source === 'PAXG' ? '≈XAUUSD' : 'XAUUSD'} ${gold.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Badge>
           )}
           {autoBias && (

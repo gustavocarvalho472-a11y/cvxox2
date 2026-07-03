@@ -26,12 +26,58 @@ function getApiKey(userKey: string): string {
 let idCounter = 0
 const nextId = () => `m${Date.now()}_${idCounter++}`
 
+const CHAT_STORAGE = 'gd_chat'
+const MAX_PERSISTED = 40
+
+interface PersistedChat {
+  display: DisplayMessage[]
+  history: Anthropic.MessageParam[]
+}
+
+function loadChat(): PersistedChat {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE)
+    if (raw) return JSON.parse(raw) as PersistedChat
+  } catch {
+    // storage corrompido — começa limpo
+  }
+  return { display: [], history: [] }
+}
+
+// Persistimos sem as imagens (base64 estouraria a cota do localStorage)
+function persistChat(display: DisplayMessage[], history: Anthropic.MessageParam[]) {
+  try {
+    const slimDisplay = display.slice(-MAX_PERSISTED).map(m => ({ ...m, imagePreview: undefined }))
+    const slimHistory = history.slice(-MAX_PERSISTED).map(m => ({
+      role: m.role,
+      content: Array.isArray(m.content)
+        ? m.content.map(b =>
+            b.type === 'image' ? { type: 'text' as const, text: '[print enviado anteriormente]' } : b,
+          )
+        : m.content,
+    }))
+    localStorage.setItem(CHAT_STORAGE, JSON.stringify({ display: slimDisplay, history: slimHistory }))
+  } catch {
+    // cota cheia — segue sem persistir
+  }
+}
+
 export function useAgent(apiKeyFromSettings: string, buildContext: () => string) {
-  const [messages, setMessages] = useState<DisplayMessage[]>([])
+  const [initial] = useState(loadChat)
+  const [messages, setMessagesState] = useState<DisplayMessage[]>(initial.display)
   const [streaming, setStreaming] = useState(false)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const historyRef = useRef<Anthropic.MessageParam[]>([])
+  const historyRef = useRef<Anthropic.MessageParam[]>(initial.history)
+  const displayRef = useRef<DisplayMessage[]>(initial.display)
+
+  const setMessages = (updater: (prev: DisplayMessage[]) => DisplayMessage[]) => {
+    setMessagesState(prev => {
+      const next = updater(prev)
+      displayRef.current = next
+      return next
+    })
+  }
 
   const hasKey = getApiKey(apiKeyFromSettings).length > 0
 
@@ -141,15 +187,23 @@ export function useAgent(apiKeyFromSettings: string, buildContext: () => string)
       } finally {
         setStreaming(false)
         setSearching(false)
+        persistChat(displayRef.current, historyRef.current)
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [apiKeyFromSettings, buildContext],
   )
 
   const clear = useCallback(() => {
-    setMessages([])
+    setMessages(() => [])
     historyRef.current = []
     setError(null)
+    try {
+      localStorage.removeItem(CHAT_STORAGE)
+    } catch {
+      // sem storage — ok
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { messages, streaming, searching, error, hasKey, sendMessage, clear }

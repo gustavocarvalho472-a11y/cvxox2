@@ -3,6 +3,7 @@ import type { KeyLevel } from '../types/trading'
 export interface GoldPrice {
   price: number
   updatedAt: string // ISO
+  source?: 'XAU' | 'PAXG'
 }
 
 export interface Candle {
@@ -11,13 +12,22 @@ export interface Candle {
   low: number
 }
 
-// gold-api.com: gratuito, sem chave, CORS liberado
+// gold-api.com (XAU spot) com fallback no ticker PAXG da Coinbase
 export async function fetchGoldPrice(): Promise<GoldPrice> {
-  const res = await fetch('https://api.gold-api.com/price/XAU')
-  if (!res.ok) throw new Error(`gold-api respondeu ${res.status}`)
-  const data = (await res.json()) as { price: number; updatedAt: string }
-  if (typeof data.price !== 'number') throw new Error('resposta inesperada da gold-api')
-  return { price: data.price, updatedAt: data.updatedAt }
+  try {
+    const res = await fetch('https://api.gold-api.com/price/XAU')
+    if (!res.ok) throw new Error(`gold-api respondeu ${res.status}`)
+    const data = (await res.json()) as { price: number; updatedAt: string }
+    if (typeof data.price !== 'number') throw new Error('resposta inesperada da gold-api')
+    return { price: data.price, updatedAt: data.updatedAt, source: 'XAU' }
+  } catch {
+    const res = await fetch('https://api.exchange.coinbase.com/products/PAXG-USD/ticker')
+    if (!res.ok) throw new Error(`Coinbase respondeu ${res.status}`)
+    const data = (await res.json()) as { price: string; time: string }
+    const price = Number(data.price)
+    if (!price) throw new Error('resposta inesperada da Coinbase')
+    return { price, updatedAt: data.time, source: 'PAXG' }
+  }
 }
 
 // Twelve Data: candles 15min de XAU/USD já no fuso BRT (250 candles ≈ 2,6 dias)
