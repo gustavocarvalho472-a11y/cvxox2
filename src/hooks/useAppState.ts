@@ -10,6 +10,7 @@ import type {
 } from '../types/trading'
 import { computeAccountState, todayStr } from '../lib/ftmo'
 import { computeBias } from '../data/macroDrivers'
+import type { CorrelationResult } from '../lib/marketData'
 
 export function useAppState() {
   const [account, setAccount] = useLocalStorage<AccountConfig>('gd_account', DEFAULT_ACCOUNT)
@@ -21,6 +22,7 @@ export function useAppState() {
     'gd_checklist',
     null,
   )
+  const [correlation, setCorrelation] = useLocalStorage<CorrelationResult | null>('gd_corr', null)
   // Override manual do guard-rail de notícia (além da detecção automática do calendário)
   const [highImpactSoon, setHighImpactSoon] = useState(false)
   const calendar = useEconCalendar()
@@ -48,6 +50,8 @@ export function useAppState() {
     highImpactSoon,
     setHighImpactSoon,
     calendar,
+    correlation,
+    setCorrelation,
     state,
     biasInfo,
     checklistDone,

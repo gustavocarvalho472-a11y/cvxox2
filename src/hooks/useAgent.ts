@@ -18,7 +18,9 @@ const MODEL = 'claude-sonnet-5'
 const MAX_CONTINUATIONS = 4
 
 function getApiKey(userKey: string): string {
-  return userKey || (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined) || ''
+  // trim: chave colada no celular costuma vir com espaço/quebra de linha no fim
+  const key = userKey || (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined) || ''
+  return key.trim()
 }
 
 let idCounter = 0
@@ -115,10 +117,16 @@ export function useAgent(apiKeyFromSettings: string, buildContext: () => string)
         }
       } catch (err) {
         let friendly = 'Erro ao falar com o agente.'
+        const isNetworkError =
+          err instanceof Anthropic.APIConnectionError ||
+          (err instanceof TypeError && /load failed|failed to fetch|network/i.test(err.message))
         if (err instanceof Anthropic.AuthenticationError) {
-          friendly = 'Chave da API inválida. Verifique nas Configurações.'
+          friendly = 'Chave da API inválida. Verifique nas Configurações e use "Testar conexão".'
         } else if (err instanceof Anthropic.RateLimitError) {
           friendly = 'Limite de requisições atingido. Aguarde um momento e tente de novo.'
+        } else if (isNetworkError) {
+          friendly =
+            'Falha de rede ao chamar a API da Anthropic. Checklist: (1) abra Configurações e use "Testar conexão" para validar a chave; (2) se estiver no celular, desative VPN/bloqueador de conteúdo para este site; (3) recarregue a página (segure o botão de recarregar para forçar) e tente de novo.'
         } else if (err instanceof Anthropic.APIError) {
           friendly = `Erro da API (${err.status}): ${err.message}`
         } else if (err instanceof Error) {

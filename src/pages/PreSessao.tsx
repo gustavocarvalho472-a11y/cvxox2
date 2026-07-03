@@ -1,4 +1,5 @@
-import { CalendarDays, ExternalLink, Newspaper } from 'lucide-react'
+import { useState } from 'react'
+import { CalendarDays, ExternalLink, Loader2, Newspaper, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,14 +10,46 @@ import { EconomicCalendar, MiniChart, NewsTimeline } from '../components/trading
 import { todayStr } from '../lib/ftmo'
 import { QUICK_PROMPTS } from '../lib/agentPrompt'
 import { fmtBrt } from '../lib/calendar'
+import {
+  computeXauUsdCorrelation,
+  correlationRegime,
+  fetchDailyCloses,
+} from '../lib/marketData'
 
 interface Props {
   app: AppState
   onAskAgent: (prompt: string) => void
 }
 
+const CORR_TTL_MS = 12 * 60 * 60 * 1000
+
 export function PreSessao({ app, onAskAgent }: Props) {
-  const { checklist, setChecklist, biasInfo, checklistDone, calendar } = app
+  const { checklist, setChecklist, biasInfo, checklistDone, calendar, tdKey, correlation, setCorrelation } = app
+  const [corrBusy, setCorrBusy] = useState(false)
+  const [corrError, setCorrError] = useState<string | null>(null)
+
+  const corrStale =
+    !correlation || Date.now() - new Date(correlation.computedAt).getTime() > CORR_TTL_MS
+
+  const refreshCorrelation = async () => {
+    if (!tdKey.trim()) {
+      setCorrError('Precisa da chave gratuita da Twelve Data (Configurações → engrenagem).')
+      return
+    }
+    setCorrBusy(true)
+    setCorrError(null)
+    try {
+      const [xau, eur] = await Promise.all([
+        fetchDailyCloses('XAU/USD', tdKey.trim()),
+        fetchDailyCloses('EUR/USD', tdKey.trim()),
+      ])
+      setCorrelation(computeXauUsdCorrelation(xau, eur))
+    } catch (err) {
+      setCorrError(err instanceof Error ? err.message : 'Erro ao calcular correlação.')
+    } finally {
+      setCorrBusy(false)
+    }
+  }
 
   const setReading = (driverId: string, optionId: string) => {
     const base = checklist ?? { date: todayStr(), readings: {}, note: '' }
@@ -148,6 +181,86 @@ export function PreSessao({ app, onAskAgent }: Props) {
 
         {/* Mini charts dos drivers */}
         <div className="space-y-4">
+          <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
+            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm text-zinc-200">Correlação XAU × Dólar (20d)</CardTitle>
+              <button
+                onClick={refreshCorrelation}
+                disabled={corrBusy}
+                className="text-zinc-500 transition hover:text-amber-300"
+                aria-label="Recalcular correlação"
+                title="Recalcular (2 requisições Twelve Data)"
+              >
+                {corrBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              </button>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {correlation ? (
+                (() => {
+                  const regime = correlationRegime(correlation.corr)
+                  return (
+                    <>
+                      <div className="flex items-baseline justify-between">
+                        <span
+                          className={cn(
+                            'text-xl font-bold tabular-nums',
+                            regime.tone === 'classic' && 'text-emerald-400',
+                            regime.tone === 'weak' && 'text-zinc-300',
+                            regime.tone === 'decoupled' && 'text-amber-400',
+                          )}
+                        >
+                          {correlation.corr > 0 ? '+' : ''}
+                          {correlation.corr.toFixed(2)}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[10px]',
+                            regime.tone === 'classic' && 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300',
+                            regime.tone === 'weak' && 'border-zinc-600 text-zinc-300',
+                            regime.tone === 'decoupled' && 'border-amber-500/50 bg-amber-500/10 text-amber-300',
+                          )}
+                        >
+                          {regime.label}
+                        </Badge>
+                      </div>
+                      {/* régua -1 .. +1 */}
+                      <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-emerald-500/60 via-zinc-600/60 to-amber-500/60">
+                        <div
+                          className="absolute top-1/2 h-3.5 w-1 -translate-y-1/2 rounded bg-white shadow"
+                          style={{ left: `${((correlation.corr + 1) / 2) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-zinc-600">
+                        <span>-1 inversa</span>
+                        <span>0</span>
+                        <span>+1 junto</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-zinc-500">{regime.detail}</p>
+                      <p className="text-[10px] text-zinc-600">
+                        {correlation.days} dias · proxy EUR/USD invertido · calc.{' '}
+                        {new Date(correlation.computedAt).toLocaleString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        {corrStale && ' · desatualizada, recalcule ↻'}
+                      </p>
+                    </>
+                  )
+                })()
+              ) : (
+                <p className="text-xs text-zinc-500">
+                  Clique em ↻ para calcular com dados reais (usa 2 requisições da sua chave Twelve
+                  Data). Mostra se o dólar está mandando no ouro ou se o ouro desacoplou — cada
+                  regime pede uma leitura diferente.
+                </p>
+              )}
+              {corrError && <p className="text-[11px] text-red-400">{corrError}</p>}
+            </CardContent>
+          </Card>
+
           <Card className="border-zinc-800 bg-zinc-900/60">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-zinc-200">DXY — Dólar</CardTitle>

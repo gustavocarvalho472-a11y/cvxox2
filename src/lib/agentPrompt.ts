@@ -6,7 +6,8 @@ import type {
   Trade,
 } from '../types/trading'
 import type { AccountState } from './ftmo'
-import type { GoldPrice } from './marketData'
+import type { CorrelationResult, GoldPrice } from './marketData'
+import { correlationRegime } from './marketData'
 import type { EconEvent } from './calendar'
 import { fmtBrt } from './calendar'
 import { fmtSignedUsd, fmtUsd, phaseLabel, tradePnl } from './ftmo'
@@ -56,10 +57,11 @@ export interface AgentContext {
   trades: Trade[]
   goldPrice: GoldPrice | null
   econEvents: EconEvent[] // relevantes nas próximas 24h
+  correlation: CorrelationResult | null
 }
 
 export function buildContextBlock(ctx: AgentContext): string {
-  const { account, state, checklist, bias, biasFilled, levels, goldPrice, econEvents } = ctx
+  const { account, state, checklist, bias, biasFilled, levels, goldPrice, econEvents, correlation } = ctx
   const session = currentSession()
   const lines: string[] = []
 
@@ -95,6 +97,14 @@ export function buildContextBlock(ctx: AgentContext): string {
     if (checklist.note) lines.push(`- Nota do trader: ${checklist.note}`)
   } else {
     lines.push('VIÉS MACRO DO DIA: checklist NÃO preenchido — o trader está sem plano macro hoje. Aponte isso se ele pedir validação de trade.')
+  }
+
+  if (correlation) {
+    const regime = correlationRegime(correlation.corr)
+    lines.push('')
+    lines.push(
+      `CORRELAÇÃO XAU × DÓLAR (${correlation.days}d, proxy EUR/USD invertido): ${correlation.corr > 0 ? '+' : ''}${correlation.corr.toFixed(2)} — ${regime.label}. ${regime.detail}`,
+    )
   }
 
   if (econEvents.length > 0) {
