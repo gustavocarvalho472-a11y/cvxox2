@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Clock, Loader2, Plus, Trash2, Zap } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { AppState } from '../hooks/useAppState'
@@ -87,32 +86,39 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
           </Card>
 
           <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-4 w-4 text-amber-400" /> Sessões do ouro (BRT)
-                <Badge variant="outline" className="ml-auto border-amber-500/50 bg-amber-500/10 text-xs text-amber-300">
-                  agora: {session.name}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              {SESSIONS.map(s => (
-                <div
-                  key={s.id}
-                  className={cn(
-                    'rounded-lg border p-3',
-                    s.id === session.id
-                      ? 'border-amber-500/50 bg-amber-500/5'
-                      : 'border-zinc-800 bg-zinc-950/60',
-                  )}
-                >
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-sm font-medium text-zinc-200">{s.name}</span>
-                    <span className="text-xs text-zinc-500 tabular-nums">{s.hoursBrt}</span>
-                  </div>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">{s.behavior}</p>
+            <CardContent className="px-4 py-3">
+              <div className="flex flex-wrap items-baseline gap-2 text-sm">
+                <Clock className="h-4 w-4 self-center text-amber-400" />
+                <span>
+                  agora: <strong>{session.name}</strong>
+                </span>
+                <span className="text-xs text-zinc-500 tabular-nums">({session.hoursBrt} BRT)</span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">{session.behavior}</p>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-[11px] text-zinc-600 hover:text-zinc-400">
+                  ver todas as sessões
+                </summary>
+                <div className="mt-2 grid gap-3 md:grid-cols-2">
+                  {SESSIONS.map(s => (
+                    <div
+                      key={s.id}
+                      className={cn(
+                        'rounded-lg border p-3',
+                        s.id === session.id
+                          ? 'border-amber-500/50 bg-amber-500/5'
+                          : 'border-zinc-800 bg-zinc-950/60',
+                      )}
+                    >
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-sm font-medium text-zinc-200">{s.name}</span>
+                        <span className="text-xs text-zinc-500 tabular-nums">{s.hoursBrt}</span>
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">{s.behavior}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </details>
             </CardContent>
           </Card>
         </div>
