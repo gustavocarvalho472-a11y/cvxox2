@@ -3,7 +3,6 @@ import { CalendarCheck, CandlestickChart, NotebookPen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppState } from './hooks/useAppState'
 import { useAgent } from './hooks/useAgent'
-import { useGoldPrice } from './hooks/useGoldPrice'
 import { buildContextBlock } from './lib/agentPrompt'
 import { AccountBar } from './components/AccountBar'
 import { SettingsDialog } from './components/SettingsDialog'
@@ -28,8 +27,7 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [draft, setDraft] = useState('')
 
-  const { account, state, checklist, biasInfo, levels, trades, apiKey } = app
-  const { gold } = useGoldPrice()
+  const { account, state, checklist, biasInfo, levels, trades, apiKey, gold } = app
 
   const buildContext = useCallback(
     () =>
@@ -37,15 +35,17 @@ export default function App() {
         account,
         state,
         checklist,
-        bias: biasInfo.bias,
+        bias: app.effectiveBias,
         biasFilled: biasInfo.filled,
         levels,
         trades,
         goldPrice: gold,
         econEvents: app.calendar.next24h,
         correlation: app.correlation,
+        autoBias: app.autoBiasFresh ? app.autoBias : null,
       }),
-    [account, state, checklist, biasInfo, levels, trades, gold, app.calendar.next24h, app.correlation],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [account, state, checklist, biasInfo, levels, trades, gold, app.calendar.next24h, app.correlation, app.autoBias, app.autoBiasFresh, app.effectiveBias],
   )
 
   const agent = useAgent(apiKey, buildContext)

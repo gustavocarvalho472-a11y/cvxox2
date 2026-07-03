@@ -8,6 +8,7 @@ import type {
 import type { AccountState } from './ftmo'
 import type { CorrelationResult, GoldPrice } from './marketData'
 import { correlationRegime } from './marketData'
+import type { AutoBiasResult } from './autoBias'
 import type { EconEvent } from './calendar'
 import { fmtBrt } from './calendar'
 import { fmtSignedUsd, fmtUsd, phaseLabel, tradePnl } from './ftmo'
@@ -58,10 +59,11 @@ export interface AgentContext {
   goldPrice: GoldPrice | null
   econEvents: EconEvent[] // relevantes nas próximas 24h
   correlation: CorrelationResult | null
+  autoBias: AutoBiasResult | null
 }
 
 export function buildContextBlock(ctx: AgentContext): string {
-  const { account, state, checklist, bias, biasFilled, levels, goldPrice, econEvents, correlation } = ctx
+  const { account, state, checklist, bias, biasFilled, levels, goldPrice, econEvents, correlation, autoBias } = ctx
   const session = currentSession()
   const lines: string[] = []
 
@@ -86,17 +88,29 @@ export function buildContextBlock(ctx: AgentContext): string {
   }
   lines.push(`- Sessão atual: ${session.name} (${session.hoursBrt} BRT)`)
 
+  if (autoBias) {
+    lines.push('')
+    lines.push(
+      `VIÉS AUTOMÁTICO DO XAU (indicadores, ${new Date(autoBias.computedAt).toLocaleTimeString('pt-BR')}): ${biasLabel(autoBias.bias)} (score ${autoBias.score > 0 ? '+' : ''}${autoBias.score}/${autoBias.maxScore})`,
+    )
+    for (const c of autoBias.components) {
+      const arrow = c.signal === 'bullish' ? '↑' : c.signal === 'bearish' ? '↓' : '→'
+      lines.push(`- ${arrow} ${c.label}: ${c.detail}`)
+    }
+    if (autoBias.caution) lines.push(`- ⚠️ ${autoBias.caution}`)
+  }
+
   lines.push('')
   if (checklist && biasFilled > 0) {
-    lines.push(`VIÉS MACRO DO DIA (checklist do trader): ${biasLabel(bias)}`)
+    lines.push(`LEITURA MANUAL DO TRADER (checklist): ${biasLabel(bias)}`)
     for (const driver of MACRO_DRIVERS) {
       const optId = checklist.readings[driver.id]
       const opt = driver.options.find(o => o.id === optId)
       if (opt) lines.push(`- ${driver.name}: ${opt.label}`)
     }
     if (checklist.note) lines.push(`- Nota do trader: ${checklist.note}`)
-  } else {
-    lines.push('VIÉS MACRO DO DIA: checklist NÃO preenchido — o trader está sem plano macro hoje. Aponte isso se ele pedir validação de trade.')
+  } else if (!autoBias) {
+    lines.push('VIÉS MACRO DO DIA: nem o viés automático nem o checklist foram preenchidos — o trader está sem plano macro hoje. Aponte isso se ele pedir validação de trade.')
   }
 
   if (correlation) {

@@ -43,7 +43,7 @@ export async function fetchXauCandles(tdKey: string): Promise<Candle[]> {
   }))
 }
 
-interface DailyClose {
+export interface DailyClose {
   date: string
   close: number
 }
