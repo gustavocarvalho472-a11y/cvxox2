@@ -10,7 +10,12 @@ import { EconomicCalendar, MiniChart, NewsTimeline } from '../components/trading
 import { todayStr } from '../lib/ftmo'
 import { QUICK_PROMPTS } from '../lib/agentPrompt'
 import { fmtBrt } from '../lib/calendar'
-import { correlationRegime, fetchDailyCloses } from '../lib/marketData'
+import {
+  correlationRegime,
+  fetchDailyCloses,
+  fetchEurDailyFree,
+  fetchGoldDailyFree,
+} from '../lib/marketData'
 import { computeAutoBias } from '../lib/autoBias'
 
 interface Props {
@@ -41,20 +46,27 @@ export function PreSessao({ app, onAskAgent }: Props) {
   const corrStale =
     !correlation || Date.now() - new Date(correlation.computedAt).getTime() > CORR_TTL_MS
 
-  // Um clique: baixa candles XAU + EUR, calcula viés automático e correlação juntos
+  // Um clique: baixa candles XAU + EUR e calcula viés + correlação juntos.
+  // Com chave Twelve Data usa XAU spot real; sem chave, cai nas fontes gratuitas
+  // (Coinbase PAXG ≈ ouro tokenizado + EUR/USD do BCE) — zero cadastro.
   const refreshAutoBias = async () => {
-    if (!tdKey.trim()) {
-      setCorrError('Precisa da chave gratuita da Twelve Data (Configurações → engrenagem).')
-      return
-    }
     setCorrBusy(true)
     setCorrError(null)
     try {
-      const [xau, eur] = await Promise.all([
-        fetchDailyCloses('XAU/USD', tdKey.trim()),
-        fetchDailyCloses('EUR/USD', tdKey.trim()),
-      ])
-      const result = computeAutoBias(xau, eur, gold?.price ?? null, calendar.todayHigh)
+      const useTd = tdKey.trim().length > 0
+      const [xau, eur] = useTd
+        ? await Promise.all([
+            fetchDailyCloses('XAU/USD', tdKey.trim()),
+            fetchDailyCloses('EUR/USD', tdKey.trim()),
+          ])
+        : await Promise.all([fetchGoldDailyFree(), fetchEurDailyFree()])
+      const result = computeAutoBias(
+        xau,
+        eur,
+        useTd ? (gold?.price ?? null) : null,
+        calendar.todayHigh,
+      )
+      result.source = useTd ? 'Twelve Data (XAU spot)' : 'Coinbase PAXG + BCE (sem chave)'
       setAutoBias(result)
       setCorrelation(result.correlation)
     } catch (err) {
@@ -124,6 +136,7 @@ export function PreSessao({ app, onAskAgent }: Props) {
                 <p className="mt-1 text-[11px] text-zinc-500">
                   calculado {new Date(autoBias.computedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   {gold ? ` · spot $${gold.price.toFixed(2)}` : ''}
+                  {autoBias.source ? ` · fonte: ${autoBias.source}` : ''}
                 </p>
               )}
             </div>
