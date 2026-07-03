@@ -3,6 +3,7 @@ import { CalendarCheck, CandlestickChart, NotebookPen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppState } from './hooks/useAppState'
 import { useAgent } from './hooks/useAgent'
+import { useGoldPrice } from './hooks/useGoldPrice'
 import { buildContextBlock } from './lib/agentPrompt'
 import { AccountBar } from './components/AccountBar'
 import { SettingsDialog } from './components/SettingsDialog'
@@ -28,6 +29,7 @@ export default function App() {
   const [draft, setDraft] = useState('')
 
   const { account, state, checklist, biasInfo, levels, trades, apiKey } = app
+  const { gold } = useGoldPrice()
 
   const buildContext = useCallback(
     () =>
@@ -39,8 +41,9 @@ export default function App() {
         biasFilled: biasInfo.filled,
         levels,
         trades,
+        goldPrice: gold,
       }),
-    [account, state, checklist, biasInfo, levels, trades],
+    [account, state, checklist, biasInfo, levels, trades, gold],
   )
 
   const agent = useAgent(apiKey, buildContext)
@@ -55,6 +58,7 @@ export default function App() {
       <AccountBar
         account={account}
         state={state}
+        gold={gold}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenAgent={() => setDrawerOpen(o => !o)}
       />
@@ -84,7 +88,9 @@ export default function App() {
 
       <main className={cn('pb-10 transition-[padding]', drawerOpen && 'lg:pr-[28rem]')}>
         {tab === 'pre' && <PreSessao app={app} onAskAgent={askAgent} />}
-        {tab === 'sala' && <SalaDeTrade app={app} onAskAgent={askAgent} />}
+        {tab === 'sala' && (
+          <SalaDeTrade app={app} onAskAgent={askAgent} onOpenSettings={() => setSettingsOpen(true)} />
+        )}
         {tab === 'pos' && <PosSessao app={app} onAskAgent={askAgent} />}
       </main>
 
@@ -103,6 +109,8 @@ export default function App() {
         setAccount={app.setAccount}
         apiKey={apiKey}
         setApiKey={app.setApiKey}
+        tdKey={app.tdKey}
+        setTdKey={app.setTdKey}
       />
     </div>
   )
