@@ -10,11 +10,8 @@ import { EconomicCalendar, MiniChart, NewsTimeline } from '../components/trading
 import { todayStr } from '../lib/ftmo'
 import { QUICK_PROMPTS } from '../lib/agentPrompt'
 import { fmtBrt } from '../lib/calendar'
-import {
-  computeXauUsdCorrelation,
-  correlationRegime,
-  fetchDailyCloses,
-} from '../lib/marketData'
+import { correlationRegime, fetchDailyCloses } from '../lib/marketData'
+import { computeAutoBias } from '../lib/autoBias'
 
 interface Props {
   app: AppState
@@ -24,14 +21,28 @@ interface Props {
 const CORR_TTL_MS = 12 * 60 * 60 * 1000
 
 export function PreSessao({ app, onAskAgent }: Props) {
-  const { checklist, setChecklist, biasInfo, checklistDone, calendar, tdKey, correlation, setCorrelation } = app
+  const {
+    checklist,
+    setChecklist,
+    biasInfo,
+    checklistDone,
+    calendar,
+    tdKey,
+    correlation,
+    setCorrelation,
+    autoBias,
+    setAutoBias,
+    autoBiasFresh,
+    gold,
+  } = app
   const [corrBusy, setCorrBusy] = useState(false)
   const [corrError, setCorrError] = useState<string | null>(null)
 
   const corrStale =
     !correlation || Date.now() - new Date(correlation.computedAt).getTime() > CORR_TTL_MS
 
-  const refreshCorrelation = async () => {
+  // Um clique: baixa candles XAU + EUR, calcula viés automático e correlação juntos
+  const refreshAutoBias = async () => {
     if (!tdKey.trim()) {
       setCorrError('Precisa da chave gratuita da Twelve Data (Configurações → engrenagem).')
       return
@@ -43,9 +54,11 @@ export function PreSessao({ app, onAskAgent }: Props) {
         fetchDailyCloses('XAU/USD', tdKey.trim()),
         fetchDailyCloses('EUR/USD', tdKey.trim()),
       ])
-      setCorrelation(computeXauUsdCorrelation(xau, eur))
+      const result = computeAutoBias(xau, eur, gold?.price ?? null, calendar.todayHigh)
+      setAutoBias(result)
+      setCorrelation(result.correlation)
     } catch (err) {
-      setCorrError(err instanceof Error ? err.message : 'Erro ao calcular correlação.')
+      setCorrError(err instanceof Error ? err.message : 'Erro ao calcular o viés.')
     } finally {
       setCorrBusy(false)
     }
@@ -68,8 +81,98 @@ export function PreSessao({ app, onAskAgent }: Props) {
         ? 'text-red-400 border-red-500/50 bg-red-500/10'
         : 'text-zinc-300 border-zinc-600 bg-zinc-800/60'
 
+  const biasTone =
+    autoBias?.bias === 'bullish'
+      ? { text: 'text-emerald-400', border: 'border-emerald-500/60', bg: 'bg-emerald-500/10' }
+      : autoBias?.bias === 'bearish'
+        ? { text: 'text-red-400', border: 'border-red-500/60', bg: 'bg-red-500/10' }
+        : { text: 'text-zinc-200', border: 'border-zinc-600', bg: 'bg-zinc-800/40' }
+
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-4">
+      {/* CARD PRINCIPAL — viés automático do XAU */}
+      <Card className={cn('border-2 bg-zinc-900/80 text-zinc-100', biasTone.border)}>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="min-w-[220px] flex-1">
+              <div className="text-[11px] font-medium uppercase tracking-widest text-zinc-500">
+                Viés automático do XAU — indicadores + notícias
+              </div>
+              {autoBias ? (
+                <div className="mt-1 flex items-baseline gap-3">
+                  <span className={cn('text-3xl font-black tracking-tight', biasTone.text)}>
+                    {biasLabel(autoBias.bias)}
+                  </span>
+                  <span className="text-sm text-zinc-400 tabular-nums">
+                    score {autoBias.score > 0 ? '+' : ''}
+                    {autoBias.score}/{autoBias.maxScore}
+                  </span>
+                  {!autoBiasFresh && (
+                    <Badge variant="outline" className="border-amber-500/50 text-[10px] text-amber-300">
+                      desatualizado — atualize
+                    </Badge>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-1 text-sm text-zinc-400">
+                  Aperte <strong>Atualizar</strong>: o app baixa os candles, lê tendência,
+                  momentum, dólar, regime de correlação e o calendário — e te dá o viés do
+                  momento em segundos.
+                </p>
+              )}
+              {autoBias && (
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  calculado {new Date(autoBias.computedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  {gold ? ` · spot $${gold.price.toFixed(2)}` : ''}
+                </p>
+              )}
+            </div>
+
+            <Button
+              onClick={refreshAutoBias}
+              disabled={corrBusy}
+              size="lg"
+              className="gap-2 bg-amber-500 font-semibold text-zinc-950 hover:bg-amber-400"
+            >
+              {corrBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
+              {autoBias ? 'Atualizar agora' : 'Calcular viés agora'}
+            </Button>
+          </div>
+
+          {autoBias && (
+            <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+              {autoBias.components.map(c => (
+                <div
+                  key={c.id}
+                  className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-1.5 text-xs"
+                >
+                  <span
+                    className={cn(
+                      'font-bold',
+                      c.signal === 'bullish' && 'text-emerald-400',
+                      c.signal === 'bearish' && 'text-red-400',
+                      c.signal === 'neutral' && 'text-zinc-500',
+                    )}
+                  >
+                    {c.signal === 'bullish' ? '↑' : c.signal === 'bearish' ? '↓' : '→'}
+                  </span>
+                  <span>
+                    <span className="text-zinc-300">{c.label}:</span>{' '}
+                    <span className="text-zinc-500">{c.detail}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {autoBias?.caution && (
+            <p className="mt-2 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-200">
+              ⚠️ {autoBias.caution}
+            </p>
+          )}
+          {corrError && <p className="mt-2 text-xs text-red-400">{corrError}</p>}
+        </CardContent>
+      </Card>
+
       {calendar.todayHigh.length > 0 && (
         <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           <strong>🔴 Hoje é dia de evento de alto impacto (USD):</strong>{' '}
@@ -91,7 +194,7 @@ export function PreSessao({ app, onAskAgent }: Props) {
         {/* Checklist macro */}
         <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100 lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base">Checklist macro do dia</CardTitle>
+            <CardTitle className="text-base">Checklist macro do dia (sua leitura)</CardTitle>
             <Badge variant="outline" className={cn('text-xs font-bold', biasColor)}>
               Viés: {biasLabel(biasInfo.bias)} ({biasInfo.score > 0 ? '+' : ''}
               {biasInfo.score})
@@ -185,7 +288,7 @@ export function PreSessao({ app, onAskAgent }: Props) {
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm text-zinc-200">Correlação XAU × Dólar (20d)</CardTitle>
               <button
-                onClick={refreshCorrelation}
+                onClick={refreshAutoBias}
                 disabled={corrBusy}
                 className="text-zinc-500 transition hover:text-amber-300"
                 aria-label="Recalcular correlação"

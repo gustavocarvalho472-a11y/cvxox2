@@ -21,7 +21,7 @@ const inputCls =
   'rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-amber-500'
 
 export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
-  const { levels, setLevels, checklistDone, tdKey } = app
+  const { levels, setLevels, biasDefined, tdKey } = app
   const [levelType, setLevelType] = useState<string>(LEVEL_TYPES[0])
   const [levelPrice, setLevelPrice] = useState('')
   const [levelNote, setLevelNote] = useState('')
@@ -70,10 +70,10 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-4">
-      {!checklistDone && (
+      {!biasDefined && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm text-red-200">
-          ⚠️ Você está operando <strong>sem plano</strong>: o checklist macro de hoje não foi
-          preenchido na Pré-Sessão.
+          ⚠️ Você está operando <strong>sem plano</strong>: atualize o viés automático (ou
+          preencha o checklist) na Pré-Sessão.
         </div>
       )}
 

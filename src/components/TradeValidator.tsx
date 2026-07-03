@@ -23,7 +23,7 @@ function RailIcon({ severity }: { severity: GuardRail['severity'] }) {
 }
 
 export function TradeValidator({ app, onAskAgent }: Props) {
-  const { account, state, biasInfo, checklistDone, highImpactSoon, setHighImpactSoon, calendar } = app
+  const { account, state, highImpactSoon, setHighImpactSoon, calendar, effectiveBias, effectiveBiasSource, biasDefined } = app
   const autoNewsSoon = calendar.activeEvent !== null
   const newsSoon = highImpactSoon || autoNewsSoon
   const [direction, setDirection] = useState<TradeDirection>('long')
@@ -56,11 +56,11 @@ export function TradeValidator({ app, onAskAgent }: Props) {
         state,
         calc,
         direction,
-        bias: biasInfo.bias,
-        checklistDone,
+        bias: effectiveBias,
+        checklistDone: biasDefined,
         highImpactSoon: newsSoon,
       }),
-    [account, state, calc, direction, biasInfo.bias, checklistDone, newsSoon],
+    [account, state, calc, direction, effectiveBias, biasDefined, newsSoon],
   )
 
   const blocked = rails.some(r => r.severity === 'block')
@@ -219,7 +219,7 @@ export function TradeValidator({ app, onAskAgent }: Props) {
               ? '❌ Não entre neste trade'
               : rails.some(r => r.severity === 'warn')
                 ? '⚠️ Possível, mas com ressalvas'
-                : `✅ Dentro das regras — viés do dia: ${biasLabel(biasInfo.bias)}`}
+                : `✅ Dentro das regras — viés ${effectiveBiasSource === 'auto' ? 'automático' : 'do checklist'}: ${biasLabel(effectiveBias)}`}
           </div>
         )}
 
