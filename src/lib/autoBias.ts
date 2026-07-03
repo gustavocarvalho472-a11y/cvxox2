@@ -20,6 +20,7 @@ export interface AutoBiasResult {
   caution: string | null // eventos de alto impacto hoje
   correlation: CorrelationResult
   computedAt: string
+  source?: string // de onde vieram os candles (Twelve Data ou fontes gratuitas)
 }
 
 function asc(series: DailyClose[]): DailyClose[] {

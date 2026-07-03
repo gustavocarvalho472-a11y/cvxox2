@@ -72,6 +72,69 @@ export async function fetchDailyCloses(
   }))
 }
 
+// ── Fontes SEM chave (fallback quando não há Twelve Data) ─────────────────
+// Coinbase PAXG-USD: ouro tokenizado, segue o XAU ~1:1. CORS liberado.
+// Formato Coinbase: [[time, low, high, open, close, volume], ...] (mais recente primeiro)
+
+export async function fetchGoldDailyFree(): Promise<DailyClose[]> {
+  const res = await fetch(
+    'https://api.exchange.coinbase.com/products/PAXG-USD/candles?granularity=86400',
+  )
+  if (!res.ok) throw new Error(`Coinbase respondeu ${res.status}`)
+  const rows = (await res.json()) as number[][]
+  if (!Array.isArray(rows) || rows.length === 0)
+    throw new Error('Resposta inesperada da Coinbase.')
+  return rows.map(r => ({
+    date: new Date(r[0] * 1000).toISOString().slice(0, 10),
+    close: r[4],
+  }))
+}
+
+// EUR/USD diário do BCE (Frankfurter) — dias úteis, sem chave, CORS liberado
+export async function fetchEurDailyFree(): Promise<DailyClose[]> {
+  const end = new Date().toISOString().slice(0, 10)
+  const startDate = new Date(Date.now() - 70 * 86400_000).toISOString().slice(0, 10)
+  const res = await fetch(
+    `https://api.frankfurter.dev/v1/${startDate}..${end}?base=EUR&symbols=USD`,
+  )
+  if (!res.ok) throw new Error(`Frankfurter respondeu ${res.status}`)
+  const data = (await res.json()) as { rates: Record<string, { USD: number }> }
+  if (!data.rates) throw new Error('Resposta inesperada do Frankfurter.')
+  return Object.entries(data.rates)
+    .map(([date, r]) => ({ date, close: r.USD }))
+    .sort((a, b) => b.date.localeCompare(a.date))
+}
+
+const brtStamp = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Sao_Paulo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+
+// Candles 15min do ouro (PAXG) sem chave — ~3 dias, p/ níveis de sessão aproximados
+export async function fetchGoldCandles15mFree(): Promise<Candle[]> {
+  const res = await fetch(
+    'https://api.exchange.coinbase.com/products/PAXG-USD/candles?granularity=900',
+  )
+  if (!res.ok) throw new Error(`Coinbase respondeu ${res.status}`)
+  const rows = (await res.json()) as number[][]
+  if (!Array.isArray(rows) || rows.length === 0)
+    throw new Error('Resposta inesperada da Coinbase.')
+  return rows.map(r => {
+    const parts = brtStamp.formatToParts(new Date(r[0] * 1000))
+    const get = (t: string) => parts.find(p => p.type === t)?.value ?? '00'
+    return {
+      datetime: `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`,
+      low: r[1],
+      high: r[2],
+    }
+  })
+}
+
 export interface CorrelationResult {
   corr: number // correlação XAU × dólar (proxy EUR/USD invertido), -1..+1
   days: number

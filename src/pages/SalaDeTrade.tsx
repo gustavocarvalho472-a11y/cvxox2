@@ -9,7 +9,7 @@ import { LEVEL_TYPES } from '../types/trading'
 import { AdvancedChart } from '../components/tradingview/widgets'
 import { TradeValidator } from '../components/TradeValidator'
 import { SESSIONS, currentSession } from '../data/sessions'
-import { computeSessionLevels, fetchXauCandles } from '../lib/marketData'
+import { computeSessionLevels, fetchGoldCandles15mFree, fetchXauCandles } from '../lib/marketData'
 
 interface Props {
   app: AppState
@@ -30,14 +30,13 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
   const session = currentSession()
 
   const pullAutoLevels = async () => {
-    if (!tdKey.trim()) {
-      setAutoError('no-key')
-      return
-    }
     setAutoBusy(true)
     setAutoError(null)
     try {
-      const candles = await fetchXauCandles(tdKey.trim())
+      // Com chave: candles XAU reais da Twelve Data; sem chave: PAXG da Coinbase (≈ XAU)
+      const candles = tdKey.trim()
+        ? await fetchXauCandles(tdKey.trim())
+        : await fetchGoldCandles15mFree()
       const autoLevels = computeSessionLevels(candles)
       if (autoLevels.length === 0) {
         setAutoError('Nenhum candle retornado para calcular níveis. Tente de novo em instantes.')
@@ -140,15 +139,15 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
                 {autoBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
                 Puxar níveis automáticos (PDH/PDL + sessões)
               </Button>
-              {autoError === 'no-key' ? (
-                <p className="text-[11px] text-amber-300">
-                  Precisa da chave gratuita da Twelve Data.{' '}
+              {autoError && <p className="text-[11px] text-red-400">{autoError}</p>}
+              {!tdKey.trim() && (
+                <p className="text-[11px] text-zinc-600">
+                  Sem chave Twelve Data, os níveis vêm do PAXG (ouro tokenizado, ≈ XAU com ~$1–5
+                  de diferença).{' '}
                   <button onClick={onOpenSettings} className="underline hover:text-amber-200">
-                    Abrir Configurações
+                    Adicionar chave p/ precisão máxima
                   </button>
                 </p>
-              ) : (
-                autoError && <p className="text-[11px] text-red-400">{autoError}</p>
               )}
               <div className="flex flex-wrap gap-2">
                 <select

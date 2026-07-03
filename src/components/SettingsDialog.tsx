@@ -184,8 +184,8 @@ export function SettingsDialog({
               onChange={e => setTdKey(e.target.value)}
             />
             <p className="mt-1 text-[11px] text-zinc-500">
-              Opcional — habilita o botão "Puxar níveis automáticos" na Sala de Trade (PDH/PDL e
-              máx/mín de Ásia/Londres/NY calculados dos candles). Grátis:{' '}
+              Opcional — o viés automático e os níveis já funcionam sem chave (via PAXG/Coinbase e
+              BCE). Com a chave, o app usa o XAU spot real, mais preciso. Grátis:{' '}
               <a
                 href="https://twelvedata.com/pricing"
                 target="_blank"
