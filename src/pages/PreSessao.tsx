@@ -23,7 +23,7 @@ function briefingPrompt(result: AutoBiasResult): string {
   return `Acabei de atualizar o viés automático: ${biasLabel(result.bias)} (score ${result.score > 0 ? '+' : ''}${result.score}/${result.maxScore}). Com base no breakdown do viés, nos eventos do calendário e nos meus níveis (tudo no seu contexto), e buscando as notícias de AGORA na web, escreva o briefing da sessão: 1) valide ou conteste o viés com o macro atual; 2) eventos das próximas 24h (horário BRT) e como operar em volta deles; 3) plano objetivo para a sessão de hoje; 4) os 2-3 riscos que invalidam essa leitura. Seja direto.`
 }
 
-const detailsCls = 'rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-100'
+const detailsCls = 'rounded-lg border glass-card text-zinc-100'
 const summaryCls =
   'cursor-pointer select-none px-4 py-3 text-sm font-medium text-zinc-300 transition hover:text-zinc-100'
 
@@ -97,7 +97,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-4">
       {/* CARD PRINCIPAL — viés automático do XAU */}
-      <Card className={cn('border-2 bg-zinc-900/80 text-zinc-100', biasTone.border)}>
+      <Card className={cn('glass-card border-2 text-zinc-100', biasTone.border)}>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="min-w-[220px] flex-1">
@@ -151,7 +151,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
               {autoBias.components.map(c => (
                 <div
                   key={c.id}
-                  className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-1.5 text-xs"
+                  className="flex items-start gap-2 glass-inset rounded-xl px-2.5 py-1.5 text-xs"
                 >
                   <span
                     className={cn(
@@ -192,7 +192,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-zinc-800 bg-zinc-900/60">
+        <Card className="glass-card">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm text-zinc-200">
               <CalendarDays className="h-4 w-4 text-amber-400" /> Calendário econômico (alto/médio
@@ -205,7 +205,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
         </Card>
 
         <div className="space-y-4">
-          <Card className="border-zinc-800 bg-zinc-900/60">
+          <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-zinc-200">DXY — Dólar</CardTitle>
             </CardHeader>
@@ -213,7 +213,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
               <MiniChart symbol="TVC:DXY" height={160} />
             </CardContent>
           </Card>
-          <Card className="border-zinc-800 bg-zinc-900/60">
+          <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-zinc-200">US10Y — Juros</CardTitle>
             </CardHeader>
@@ -225,7 +225,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
       </div>
 
       {/* Nota do dia — o agente lê */}
-      <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
+      <Card className="glass-card text-zinc-100">
         <CardContent className="p-4">
           <label className="mb-1 block text-[11px] uppercase text-zinc-500">
             Nota do dia (opcional — o agente lê isso)
@@ -241,7 +241,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
               })
             }
             placeholder="Ex.: esperando CPI às 09h30 BRT; só opero depois do dado…"
-            className="w-full resize-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+            className="w-full resize-none rounded-xl glass-input px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
           />
         </CardContent>
       </Card>
@@ -265,7 +265,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
           {MACRO_DRIVERS.map(driver => {
             const selected = checklist?.readings[driver.id] ?? null
             return (
-              <div key={driver.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+              <div key={driver.id} className="glass-inset rounded-2xl p-3">
                 <div className="mb-2 flex items-baseline justify-between gap-2">
                   <span className="text-sm font-medium text-zinc-200">{driver.name}</span>
                   <span className="text-xs text-zinc-500">{driver.question}</span>
@@ -322,7 +322,7 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
         <summary className={summaryCls}>Pano de fundo estrutural do ouro (leitura)</summary>
         <div className="grid gap-3 px-4 pb-4 md:grid-cols-2">
           {STRUCTURAL_DRIVERS.map(d => (
-            <div key={d.name} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+            <div key={d.name} className="glass-inset rounded-2xl p-3">
               <div className="text-sm font-medium text-zinc-200">{d.name}</div>
               <p className="mt-1 text-xs leading-relaxed text-zinc-500">{d.detail}</p>
               <div className="mt-2 flex flex-wrap gap-3">

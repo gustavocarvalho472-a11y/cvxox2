@@ -17,7 +17,7 @@ interface Props {
 }
 
 const inputCls =
-  'rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-amber-500'
+  'rounded-xl glass-input px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-amber-500'
 
 export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
   const { levels, setLevels, biasDefined, tdKey } = app
@@ -77,7 +77,7 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
-          <Card className="border-zinc-800 bg-zinc-900/60">
+          <Card className="glass-card">
             <CardContent className="p-1">
               <div style={{ height: 560 }}>
                 <AdvancedChart height={558} />
@@ -85,7 +85,7 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
             </CardContent>
           </Card>
 
-          <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
+          <Card className="glass-card text-zinc-100">
             <CardContent className="px-4 py-3">
               <div className="flex flex-wrap items-baseline gap-2 text-sm">
                 <Clock className="h-4 w-4 self-center text-amber-400" />
@@ -107,7 +107,7 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
                         'rounded-lg border p-3',
                         s.id === session.id
                           ? 'border-amber-500/50 bg-amber-500/5'
-                          : 'border-zinc-800 bg-zinc-950/60',
+                          : 'glass-inset',
                       )}
                     >
                       <div className="flex items-baseline justify-between">
@@ -126,7 +126,7 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
         <div className="space-y-4">
           <TradeValidator app={app} onAskAgent={onAskAgent} />
 
-          <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
+          <Card className="glass-card text-zinc-100">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Níveis de liquidez</CardTitle>
             </CardHeader>
@@ -200,7 +200,7 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
                     .map(level => (
                       <li
                         key={level.id}
-                        className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-1.5 text-xs"
+                        className="flex items-center gap-2 glass-inset rounded-xl px-2.5 py-1.5 text-xs"
                       >
                         <span className="font-semibold text-amber-300 tabular-nums">
                           {level.price.toFixed(2)}

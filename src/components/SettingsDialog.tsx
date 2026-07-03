@@ -23,7 +23,7 @@ interface Props {
 }
 
 const inputCls =
-  'w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500'
+  'w-full rounded-xl glass-input px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500'
 const labelCls = 'mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-400'
 
 // Tudo que o app guarda no navegador — a ordem não importa
@@ -122,7 +122,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-md">
+      <DialogContent className="glass-strong text-zinc-100 sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Configurações</DialogTitle>
           <DialogDescription className="text-zinc-400">
@@ -254,7 +254,7 @@ export function SettingsDialog({
             </p>
           </div>
 
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-3">
+          <div className="rounded-lg border glass-card p-3">
             <div className={labelCls}>Backup dos seus dados</div>
             <p className="mb-2 text-[11px] text-zinc-500">
               Trades, níveis, configurações e chaves ficam só neste navegador. Exporte um backup

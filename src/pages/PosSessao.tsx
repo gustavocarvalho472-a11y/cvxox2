@@ -16,7 +16,7 @@ interface Props {
 }
 
 const inputCls =
-  'rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-amber-500'
+  'rounded-xl glass-input px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-amber-500'
 
 function download(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type })
@@ -127,7 +127,7 @@ export function PosSessao({ app, onAskAgent }: Props) {
     <div className="mx-auto max-w-7xl space-y-4 p-4">
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Registrar trade */}
-        <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
+        <Card className="glass-card text-zinc-100">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Registrar trade de hoje</CardTitle>
           </CardHeader>
@@ -220,7 +220,7 @@ export function PosSessao({ app, onAskAgent }: Props) {
               placeholder="Notas: o que vi, o que senti, o que faria diferente…"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="w-full resize-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+              className="w-full resize-none rounded-xl glass-input px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
             />
 
             <Button onClick={addTrade} className="w-full gap-2 bg-amber-500 text-zinc-950 hover:bg-amber-400">
@@ -239,7 +239,7 @@ export function PosSessao({ app, onAskAgent }: Props) {
         </Card>
 
         {/* Estatísticas */}
-        <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100 lg:col-span-2">
+        <Card className="glass-card text-zinc-100 lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-base">Estatísticas da fase</CardTitle>
             <div className="flex gap-2">
@@ -283,7 +283,7 @@ export function PosSessao({ app, onAskAgent }: Props) {
                       danger: stats.offPlanPct > 0.2,
                     },
                   ].map(kpi => (
-                    <div key={kpi.label} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-center">
+                    <div key={kpi.label} className="glass-inset rounded-2xl p-3 text-center">
                       <div className="text-[11px] uppercase text-zinc-500">{kpi.label}</div>
                       <div
                         className={cn(
@@ -302,7 +302,7 @@ export function PosSessao({ app, onAskAgent }: Props) {
                     <div className="mb-2 text-xs font-medium uppercase text-zinc-500">Por setup</div>
                     <ul className="space-y-1">
                       {stats.bySetup.map(([name, g]) => (
-                        <li key={name} className="flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-1.5 text-xs">
+                        <li key={name} className="flex items-center justify-between glass-inset rounded-xl px-2.5 py-1.5 text-xs">
                           <span className="text-zinc-300">{name}</span>
                           <span className="tabular-nums text-zinc-400">
                             {g.count}x · {Math.round((g.wins / g.count) * 100)}% ·{' '}
@@ -319,7 +319,7 @@ export function PosSessao({ app, onAskAgent }: Props) {
                     <div className="mb-2 text-xs font-medium uppercase text-zinc-500">Por sessão</div>
                     <ul className="space-y-1">
                       {stats.bySession.map(([name, g]) => (
-                        <li key={name} className="flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-1.5 text-xs">
+                        <li key={name} className="flex items-center justify-between glass-inset rounded-xl px-2.5 py-1.5 text-xs">
                           <span className="text-zinc-300">{name}</span>
                           <span className="tabular-nums text-zinc-400">
                             {g.count}x · {Math.round((g.wins / g.count) * 100)}% ·{' '}
@@ -340,7 +340,7 @@ export function PosSessao({ app, onAskAgent }: Props) {
       </div>
 
       {/* Diário */}
-      <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
+      <Card className="glass-card text-zinc-100">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Diário de trades</CardTitle>
         </CardHeader>

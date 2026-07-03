@@ -64,7 +64,7 @@ export default function App() {
   )
 
   return (
-    <div className="min-h-dvh bg-zinc-950 text-zinc-100">
+    <div className="min-h-dvh text-zinc-100">
       <AccountBar
         account={account}
         state={state}
@@ -75,22 +75,25 @@ export default function App() {
         onOpenAgent={() => setDrawerOpen(o => !o)}
       />
 
-      <nav className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl gap-1 px-4">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={cn(
-                'flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition',
-                tab === id
-                  ? 'border-amber-500 text-amber-300'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-300',
-              )}
-            >
-              <Icon className="h-4 w-4" /> {label}
-            </button>
-          ))}
+      <nav className="sticky top-2 z-30 px-3 py-2">
+        <div className="mx-auto max-w-7xl">
+          <div className="glass-card flex w-full gap-1 !rounded-full p-1 sm:w-fit">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium transition sm:flex-none sm:gap-2 sm:px-4',
+                  tab === id
+                    ? 'bg-white/15 text-amber-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]'
+                    : 'text-zinc-400 hover:text-zinc-200',
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate text-xs sm:text-sm">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
 
