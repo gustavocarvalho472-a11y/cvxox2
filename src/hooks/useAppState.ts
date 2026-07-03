@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useLocalStorage } from './useLocalStorage'
+import { useEconCalendar } from './useEconCalendar'
 import { DEFAULT_ACCOUNT } from '../types/trading'
 import type {
   AccountConfig,
@@ -20,8 +21,9 @@ export function useAppState() {
     'gd_checklist',
     null,
   )
-  // Evento de alto impacto nos próximos 30 min — marcado manualmente, só vale na sessão
+  // Override manual do guard-rail de notícia (além da detecção automática do calendário)
   const [highImpactSoon, setHighImpactSoon] = useState(false)
+  const calendar = useEconCalendar()
 
   // Checklist é diário: o de ontem não vale hoje
   const checklist = rawChecklist && rawChecklist.date === todayStr() ? rawChecklist : null
@@ -45,6 +47,7 @@ export function useAppState() {
     setChecklist,
     highImpactSoon,
     setHighImpactSoon,
+    calendar,
     state,
     biasInfo,
     checklistDone,

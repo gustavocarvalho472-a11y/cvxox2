@@ -42,8 +42,9 @@ export default function App() {
         levels,
         trades,
         goldPrice: gold,
+        econEvents: app.calendar.next24h,
       }),
-    [account, state, checklist, biasInfo, levels, trades, gold],
+    [account, state, checklist, biasInfo, levels, trades, gold, app.calendar.next24h],
   )
 
   const agent = useAgent(apiKey, buildContext)
