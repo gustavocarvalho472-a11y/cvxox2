@@ -2,30 +2,6 @@ import { TradingViewWidget } from './TradingViewWidget'
 
 const EMBED = 'https://s3.tradingview.com/external-embedding'
 
-export function TickerTape() {
-  return (
-    <TradingViewWidget
-      src={`${EMBED}/embed-widget-ticker-tape.js`}
-      height={46}
-      config={{
-        symbols: [
-          { proName: 'OANDA:XAUUSD', title: 'Ouro' },
-          { proName: 'TVC:DXY', title: 'DXY' },
-          { proName: 'TVC:US10Y', title: 'US10Y' },
-          { proName: 'TVC:USOIL', title: 'WTI' },
-          { proName: 'TVC:VIX', title: 'VIX' },
-          { proName: 'VANTAGE:SP500', title: 'S&P 500' },
-        ],
-        showSymbolLogo: true,
-        colorTheme: 'dark',
-        isTransparent: true,
-        displayMode: 'adaptive',
-        locale: 'br',
-      }}
-    />
-  )
-}
-
 export function MiniChart({ symbol, height = 220 }: { symbol: string; height?: number }) {
   return (
     <TradingViewWidget
@@ -84,25 +60,6 @@ export function EconomicCalendar({ height = 420 }: { height?: number }) {
         locale: 'br',
         importanceFilter: '0,1', // alto e médio impacto
         countryFilter: 'us,eu,cn',
-      }}
-    />
-  )
-}
-
-export function NewsTimeline({ height = 420 }: { height?: number }) {
-  return (
-    <TradingViewWidget
-      src={`${EMBED}/embed-widget-timeline.js`}
-      height={height}
-      config={{
-        feedMode: 'market',
-        market: 'index',
-        colorTheme: 'dark',
-        isTransparent: true,
-        displayMode: 'regular',
-        width: '100%',
-        height,
-        locale: 'br',
       }}
     />
   )

@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge'
 import type { AccountConfig } from '../types/trading'
 import type { AccountState } from '../lib/ftmo'
 import type { GoldPrice } from '../lib/marketData'
+import type { AutoBiasResult } from '../lib/autoBias'
+import { biasLabel } from '../data/macroDrivers'
 import { fmtSignedUsd, fmtUsd, phaseLabel } from '../lib/ftmo'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +13,8 @@ interface Props {
   account: AccountConfig
   state: AccountState
   gold: GoldPrice | null
+  autoBias: AutoBiasResult | null // só quando fresco
+  onBiasClick: () => void
   onOpenSettings: () => void
   onOpenAgent: () => void
 }
@@ -46,7 +50,7 @@ function Meter({
   )
 }
 
-export function AccountBar({ account, state, gold, onOpenSettings, onOpenAgent }: Props) {
+export function AccountBar({ account, state, gold, autoBias, onBiasClick, onOpenSettings, onOpenAgent }: Props) {
   const dailyUsed = state.maxDailyLoss > 0 ? state.dailyLossUsed / state.maxDailyLoss : 0
   const totalUsed = state.maxTotalLoss > 0 ? state.totalLossUsed / state.maxTotalLoss : 0
   const critical = state.tradesLeftOnRisk < 2
@@ -72,9 +76,26 @@ export function AccountBar({ account, state, gold, onOpenSettings, onOpenAgent }
               XAUUSD ${gold.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Badge>
           )}
+          {autoBias && (
+            <button onClick={onBiasClick} title="Viés automático — clique para ver o breakdown">
+              <Badge
+                variant="outline"
+                className={cn(
+                  'gap-1 text-xs font-bold tabular-nums',
+                  autoBias.bias === 'bullish' && 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300',
+                  autoBias.bias === 'bearish' && 'border-red-500/50 bg-red-500/10 text-red-300',
+                  autoBias.bias === 'neutral' && 'border-zinc-600 text-zinc-300',
+                )}
+              >
+                {biasLabel(autoBias.bias)} {autoBias.score > 0 ? '+' : ''}
+                {autoBias.score}
+              </Badge>
+            </button>
+          )}
         </div>
 
-        <div className="flex flex-1 flex-wrap items-center gap-x-6 gap-y-2">
+        {/* métricas completas: só em telas ≥sm; no celular vira a linha compacta abaixo */}
+        <div className="hidden flex-1 flex-wrap items-center gap-x-6 gap-y-2 sm:flex">
           <div className="min-w-[110px]">
             <div className="text-[11px] uppercase tracking-wide text-zinc-400">Saldo</div>
             <div className="text-sm font-semibold text-zinc-100 tabular-nums">
@@ -132,7 +153,20 @@ export function AccountBar({ account, state, gold, onOpenSettings, onOpenAgent }
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* resumo mobile: o essencial em uma linha */}
+        <div className="order-last flex w-full items-center justify-between gap-2 text-xs sm:hidden">
+          <span className="font-semibold text-zinc-100 tabular-nums">
+            ${fmtUsd(state.balance)}{' '}
+            <span className={cn('font-medium', state.dayPnl >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+              {fmtSignedUsd(state.dayPnl)}
+            </span>
+          </span>
+          <span className={cn('tabular-nums', critical ? 'font-semibold text-red-300' : 'text-zinc-400')}>
+            resta ${fmtUsd(state.dailyLossLeft)} hoje · ~{state.tradesLeftOnRisk} trades
+          </span>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
           <Button
             size="sm"
             onClick={onOpenAgent}

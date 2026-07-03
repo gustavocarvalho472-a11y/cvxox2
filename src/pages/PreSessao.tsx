@@ -1,57 +1,64 @@
 import { useState } from 'react'
-import { CalendarDays, ExternalLink, Loader2, Newspaper, RefreshCw } from 'lucide-react'
+import { CalendarDays, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { AppState } from '../hooks/useAppState'
 import { MACRO_DRIVERS, STRUCTURAL_DRIVERS, biasLabel } from '../data/macroDrivers'
-import { EconomicCalendar, MiniChart, NewsTimeline } from '../components/tradingview/widgets'
+import { EconomicCalendar, MiniChart } from '../components/tradingview/widgets'
 import { todayStr } from '../lib/ftmo'
-import { QUICK_PROMPTS } from '../lib/agentPrompt'
 import { fmtBrt } from '../lib/calendar'
-import {
-  correlationRegime,
-  fetchDailyCloses,
-  fetchEurDailyFree,
-  fetchGoldDailyFree,
-} from '../lib/marketData'
+import { fetchDailyCloses, fetchEurDailyFree, fetchGoldDailyFree } from '../lib/marketData'
 import { computeAutoBias } from '../lib/autoBias'
+import type { AutoBiasResult } from '../lib/autoBias'
 
 interface Props {
   app: AppState
-  onAskAgent: (prompt: string) => void
+  agentReady: boolean
+  onSendAgent: (prompt: string) => void
 }
 
-const CORR_TTL_MS = 12 * 60 * 60 * 1000
+function briefingPrompt(result: AutoBiasResult): string {
+  return `Acabei de atualizar o viés automático: ${biasLabel(result.bias)} (score ${result.score > 0 ? '+' : ''}${result.score}/${result.maxScore}). Com base no breakdown do viés, nos eventos do calendário e nos meus níveis (tudo no seu contexto), e buscando as notícias de AGORA na web, escreva o briefing da sessão: 1) valide ou conteste o viés com o macro atual; 2) eventos das próximas 24h (horário BRT) e como operar em volta deles; 3) plano objetivo para a sessão de hoje; 4) os 2-3 riscos que invalidam essa leitura. Seja direto.`
+}
 
-export function PreSessao({ app, onAskAgent }: Props) {
+const detailsCls = 'rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-100'
+const summaryCls =
+  'cursor-pointer select-none px-4 py-3 text-sm font-medium text-zinc-300 transition hover:text-zinc-100'
+
+export function PreSessao({ app, agentReady, onSendAgent }: Props) {
   const {
     checklist,
     setChecklist,
     biasInfo,
-    checklistDone,
     calendar,
     tdKey,
-    correlation,
     setCorrelation,
     autoBias,
     setAutoBias,
     autoBiasFresh,
     gold,
   } = app
-  const [corrBusy, setCorrBusy] = useState(false)
-  const [corrError, setCorrError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [briefingSent, setBriefingSent] = useState(false)
 
-  const corrStale =
-    !correlation || Date.now() - new Date(correlation.computedAt).getTime() > CORR_TTL_MS
+  const setReading = (driverId: string, optionId: string) => {
+    const base = checklist ?? { date: todayStr(), readings: {}, note: '' }
+    const current = base.readings[driverId]
+    setChecklist({
+      ...base,
+      date: todayStr(),
+      readings: { ...base.readings, [driverId]: current === optionId ? null : optionId },
+    })
+  }
 
-  // Um clique: baixa candles XAU + EUR e calcula viés + correlação juntos.
-  // Com chave Twelve Data usa XAU spot real; sem chave, cai nas fontes gratuitas
-  // (Coinbase PAXG ≈ ouro tokenizado + EUR/USD do BCE) — zero cadastro.
+  // Um clique: candles → viés + correlação; com chave Anthropic, o agente já escreve o briefing
   const refreshAutoBias = async () => {
-    setCorrBusy(true)
-    setCorrError(null)
+    setBusy(true)
+    setError(null)
+    setBriefingSent(false)
     try {
       const useTd = tdKey.trim().length > 0
       const [xau, eur] = useTd
@@ -69,36 +76,23 @@ export function PreSessao({ app, onAskAgent }: Props) {
       result.source = useTd ? 'Twelve Data (XAU spot)' : 'Coinbase PAXG + BCE (sem chave)'
       setAutoBias(result)
       setCorrelation(result.correlation)
+      if (agentReady) {
+        onSendAgent(briefingPrompt(result))
+        setBriefingSent(true)
+      }
     } catch (err) {
-      setCorrError(err instanceof Error ? err.message : 'Erro ao calcular o viés.')
+      setError(err instanceof Error ? err.message : 'Erro ao calcular o viés.')
     } finally {
-      setCorrBusy(false)
+      setBusy(false)
     }
   }
 
-  const setReading = (driverId: string, optionId: string) => {
-    const base = checklist ?? { date: todayStr(), readings: {}, note: '' }
-    const current = base.readings[driverId]
-    setChecklist({
-      ...base,
-      date: todayStr(),
-      readings: { ...base.readings, [driverId]: current === optionId ? null : optionId },
-    })
-  }
-
-  const biasColor =
-    biasInfo.bias === 'bullish'
-      ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10'
-      : biasInfo.bias === 'bearish'
-        ? 'text-red-400 border-red-500/50 bg-red-500/10'
-        : 'text-zinc-300 border-zinc-600 bg-zinc-800/60'
-
   const biasTone =
     autoBias?.bias === 'bullish'
-      ? { text: 'text-emerald-400', border: 'border-emerald-500/60', bg: 'bg-emerald-500/10' }
+      ? { text: 'text-emerald-400', border: 'border-emerald-500/60' }
       : autoBias?.bias === 'bearish'
-        ? { text: 'text-red-400', border: 'border-red-500/60', bg: 'bg-red-500/10' }
-        : { text: 'text-zinc-200', border: 'border-zinc-600', bg: 'bg-zinc-800/40' }
+        ? { text: 'text-red-400', border: 'border-red-500/60' }
+        : { text: 'text-zinc-200', border: 'border-zinc-600' }
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-4">
@@ -127,9 +121,8 @@ export function PreSessao({ app, onAskAgent }: Props) {
                 </div>
               ) : (
                 <p className="mt-1 text-sm text-zinc-400">
-                  Aperte <strong>Atualizar</strong>: o app baixa os candles, lê tendência,
-                  momentum, dólar, regime de correlação e o calendário — e te dá o viés do
-                  momento em segundos.
+                  Aperte o botão: o app lê tendência, momentum, dólar, regime de correlação e o
+                  calendário{agentReady ? ' — e o agente já escreve o briefing do dia' : ''}.
                 </p>
               )}
               {autoBias && (
@@ -137,18 +130,19 @@ export function PreSessao({ app, onAskAgent }: Props) {
                   calculado {new Date(autoBias.computedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   {gold ? ` · spot $${gold.price.toFixed(2)}` : ''}
                   {autoBias.source ? ` · fonte: ${autoBias.source}` : ''}
+                  {briefingSent ? ' · briefing enviado ao agente →' : ''}
                 </p>
               )}
             </div>
 
             <Button
               onClick={refreshAutoBias}
-              disabled={corrBusy}
+              disabled={busy}
               size="lg"
               className="gap-2 bg-amber-500 font-semibold text-zinc-950 hover:bg-amber-400"
             >
-              {corrBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
-              {autoBias ? 'Atualizar agora' : 'Calcular viés agora'}
+              {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
+              {agentReady ? 'Viés + briefing do dia' : autoBias ? 'Atualizar agora' : 'Calcular viés agora'}
             </Button>
           </div>
 
@@ -182,7 +176,7 @@ export function PreSessao({ app, onAskAgent }: Props) {
               ⚠️ {autoBias.caution}
             </p>
           )}
-          {corrError && <p className="mt-2 text-xs text-red-400">{corrError}</p>}
+          {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
         </CardContent>
       </Card>
 
@@ -197,58 +191,110 @@ export function PreSessao({ app, onAskAgent }: Props) {
         </div>
       )}
 
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-200">
-        <strong>Ritual pré-sessão:</strong> confira o calendário do dia, leia os 5 drivers e
-        registre seu viés antes de abrir o gráfico. Em dia de NFP, CPI ou FOMC, o ouro anda $30–60
-        em minutos — reduza o risco ou não opere o horário do evento.
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-zinc-800 bg-zinc-900/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-zinc-200">
+              <CalendarDays className="h-4 w-4 text-amber-400" /> Calendário econômico (alto/médio
+              impacto)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-2 pt-0">
+            <EconomicCalendar height={430} />
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          <Card className="border-zinc-800 bg-zinc-900/60">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-zinc-200">DXY — Dólar</CardTitle>
+            </CardHeader>
+            <CardContent className="p-2 pt-0">
+              <MiniChart symbol="TVC:DXY" height={160} />
+            </CardContent>
+          </Card>
+          <Card className="border-zinc-800 bg-zinc-900/60">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-zinc-200">US10Y — Juros</CardTitle>
+            </CardHeader>
+            <CardContent className="p-2 pt-0">
+              <MiniChart symbol="TVC:US10Y" height={160} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Checklist macro */}
-        <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100 lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base">Checklist macro do dia (sua leitura)</CardTitle>
-            <Badge variant="outline" className={cn('text-xs font-bold', biasColor)}>
+      {/* Nota do dia — o agente lê */}
+      <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
+        <CardContent className="p-4">
+          <label className="mb-1 block text-[11px] uppercase text-zinc-500">
+            Nota do dia (opcional — o agente lê isso)
+          </label>
+          <textarea
+            rows={2}
+            value={checklist?.note ?? ''}
+            onChange={e =>
+              setChecklist({
+                date: todayStr(),
+                readings: checklist?.readings ?? {},
+                note: e.target.value,
+              })
+            }
+            placeholder="Ex.: esperando CPI às 09h30 BRT; só opero depois do dado…"
+            className="w-full resize-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Leitura manual — opcional, recolhida */}
+      <details className={detailsCls}>
+        <summary className={summaryCls}>
+          Sua leitura manual (opcional) — checklist dos 5 drivers
+          {biasInfo.filled > 0 && (
+            <span className="ml-2 text-xs text-zinc-500">
               Viés: {biasLabel(biasInfo.bias)} ({biasInfo.score > 0 ? '+' : ''}
               {biasInfo.score})
-            </Badge>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!checklistDone && (
-              <p className="text-xs text-zinc-500">
-                Preencha pelo menos 3 leituras — sem viés definido, o validador de trade vai te
-                avisar que você está operando sem plano.
-              </p>
-            )}
-            {MACRO_DRIVERS.map(driver => {
-              const selected = checklist?.readings[driver.id] ?? null
-              return (
-                <div key={driver.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                  <div className="mb-2 flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-medium text-zinc-200">{driver.name}</span>
-                    <span className="text-xs text-zinc-500">{driver.question}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {driver.options.map(opt => (
-                      <button
-                        key={opt.id}
-                        onClick={() => setReading(driver.id, opt.id)}
-                        className={cn(
-                          'rounded-full border px-3 py-1 text-xs transition',
-                          selected === opt.id
-                            ? opt.goldImpact === 'bullish'
-                              ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
-                              : opt.goldImpact === 'bearish'
-                                ? 'border-red-500 bg-red-500/15 text-red-300'
-                                : 'border-zinc-500 bg-zinc-700/50 text-zinc-200'
-                            : 'border-zinc-700 text-zinc-400 hover:border-zinc-500',
-                        )}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{driver.why}</p>
+            </span>
+          )}
+        </summary>
+        <div className="space-y-3 px-4 pb-4">
+          <p className="text-xs text-zinc-500">
+            O viés automático já cobre os indicadores — use este checklist quando quiser registrar
+            a SUA leitura (geopolítica e Fed o indicador não captura). O agente compara as duas.
+          </p>
+          {MACRO_DRIVERS.map(driver => {
+            const selected = checklist?.readings[driver.id] ?? null
+            return (
+              <div key={driver.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                <div className="mb-2 flex items-baseline justify-between gap-2">
+                  <span className="text-sm font-medium text-zinc-200">{driver.name}</span>
+                  <span className="text-xs text-zinc-500">{driver.question}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {driver.options.map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setReading(driver.id, opt.id)}
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs transition',
+                        selected === opt.id
+                          ? opt.goldImpact === 'bullish'
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
+                            : opt.goldImpact === 'bearish'
+                              ? 'border-red-500 bg-red-500/15 text-red-300'
+                              : 'border-zinc-500 bg-zinc-700/50 text-zinc-200'
+                          : 'border-zinc-700 text-zinc-400 hover:border-zinc-500',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-[11px] text-zinc-600 hover:text-zinc-400">
+                    por quê importa?
+                  </summary>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">{driver.why}</p>
                   {driver.links && (
                     <div className="mt-1 flex flex-wrap gap-3">
                       {driver.links.map(l => (
@@ -264,183 +310,17 @@ export function PreSessao({ app, onAskAgent }: Props) {
                       ))}
                     </div>
                   )}
-                </div>
-              )
-            })}
-            <div>
-              <label className="mb-1 block text-[11px] uppercase text-zinc-500">
-                Nota do dia (opcional — o agente lê isso)
-              </label>
-              <textarea
-                rows={2}
-                value={checklist?.note ?? ''}
-                onChange={e =>
-                  setChecklist({
-                    date: todayStr(),
-                    readings: checklist?.readings ?? {},
-                    note: e.target.value,
-                  })
-                }
-                placeholder="Ex.: esperando CPI às 09h30 BRT; só opero depois do dado…"
-                className="w-full resize-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
-              />
-            </div>
-            <Button
-              variant="outline"
-              className="w-full border-sky-500/50 text-sky-300 hover:bg-sky-500/10"
-              onClick={() => onAskAgent(QUICK_PROMPTS[0].prompt)}
-            >
-              <Newspaper className="mr-2 h-4 w-4" /> Pedir resumo macro do dia ao agente
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Mini charts dos drivers */}
-        <div className="space-y-4">
-          <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
-            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm text-zinc-200">Correlação XAU × Dólar (20d)</CardTitle>
-              <button
-                onClick={refreshAutoBias}
-                disabled={corrBusy}
-                className="text-zinc-500 transition hover:text-amber-300"
-                aria-label="Recalcular correlação"
-                title="Recalcular (2 requisições Twelve Data)"
-              >
-                {corrBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              </button>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {correlation ? (
-                (() => {
-                  const regime = correlationRegime(correlation.corr)
-                  return (
-                    <>
-                      <div className="flex items-baseline justify-between">
-                        <span
-                          className={cn(
-                            'text-xl font-bold tabular-nums',
-                            regime.tone === 'classic' && 'text-emerald-400',
-                            regime.tone === 'weak' && 'text-zinc-300',
-                            regime.tone === 'decoupled' && 'text-amber-400',
-                          )}
-                        >
-                          {correlation.corr > 0 ? '+' : ''}
-                          {correlation.corr.toFixed(2)}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[10px]',
-                            regime.tone === 'classic' && 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300',
-                            regime.tone === 'weak' && 'border-zinc-600 text-zinc-300',
-                            regime.tone === 'decoupled' && 'border-amber-500/50 bg-amber-500/10 text-amber-300',
-                          )}
-                        >
-                          {regime.label}
-                        </Badge>
-                      </div>
-                      {/* régua -1 .. +1 */}
-                      <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-emerald-500/60 via-zinc-600/60 to-amber-500/60">
-                        <div
-                          className="absolute top-1/2 h-3.5 w-1 -translate-y-1/2 rounded bg-white shadow"
-                          style={{ left: `${((correlation.corr + 1) / 2) * 100}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-zinc-600">
-                        <span>-1 inversa</span>
-                        <span>0</span>
-                        <span>+1 junto</span>
-                      </div>
-                      <p className="text-[11px] leading-relaxed text-zinc-500">{regime.detail}</p>
-                      <p className="text-[10px] text-zinc-600">
-                        {correlation.days} dias · proxy EUR/USD invertido · calc.{' '}
-                        {new Date(correlation.computedAt).toLocaleString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                        {corrStale && ' · desatualizada, recalcule ↻'}
-                      </p>
-                    </>
-                  )
-                })()
-              ) : (
-                <p className="text-xs text-zinc-500">
-                  Clique em ↻ para calcular com dados reais (usa 2 requisições da sua chave Twelve
-                  Data). Mostra se o dólar está mandando no ouro ou se o ouro desacoplou — cada
-                  regime pede uma leitura diferente.
-                </p>
-              )}
-              {corrError && <p className="text-[11px] text-red-400">{corrError}</p>}
-            </CardContent>
-          </Card>
-
-          <Card className="border-zinc-800 bg-zinc-900/60">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-zinc-200">DXY — Dólar</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <MiniChart symbol="TVC:DXY" height={180} />
-            </CardContent>
-          </Card>
-          <Card className="border-zinc-800 bg-zinc-900/60">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-zinc-200">US10Y — Juros</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <MiniChart symbol="TVC:US10Y" height={180} />
-            </CardContent>
-          </Card>
-          <Card className="border-zinc-800 bg-zinc-900/60">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-zinc-200">WTI — Petróleo</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <MiniChart symbol="TVC:USOIL" height={180} />
-            </CardContent>
-          </Card>
-          <Card className="border-zinc-800 bg-zinc-900/60">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-zinc-200">VIX — Medo</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <MiniChart symbol="TVC:VIX" height={180} />
-            </CardContent>
-          </Card>
+                </details>
+              </div>
+            )
+          })}
         </div>
-      </div>
+      </details>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-zinc-800 bg-zinc-900/60">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm text-zinc-200">
-              <CalendarDays className="h-4 w-4 text-amber-400" /> Calendário econômico (alto/médio
-              impacto)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 pt-0">
-            <EconomicCalendar height={420} />
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-800 bg-zinc-900/60">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm text-zinc-200">
-              <Newspaper className="h-4 w-4 text-amber-400" /> Notícias do mercado
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 pt-0">
-            <NewsTimeline height={420} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Pano de fundo estrutural do ouro</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
+      {/* Educacional — recolhido */}
+      <details className={detailsCls}>
+        <summary className={summaryCls}>Pano de fundo estrutural do ouro (leitura)</summary>
+        <div className="grid gap-3 px-4 pb-4 md:grid-cols-2">
           {STRUCTURAL_DRIVERS.map(d => (
             <div key={d.name} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
               <div className="text-sm font-medium text-zinc-200">{d.name}</div>
@@ -460,8 +340,8 @@ export function PreSessao({ app, onAskAgent }: Props) {
               </div>
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
     </div>
   )
 }
