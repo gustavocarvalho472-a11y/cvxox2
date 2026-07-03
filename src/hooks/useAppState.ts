@@ -13,6 +13,7 @@ import { computeBias } from '../data/macroDrivers'
 export function useAppState() {
   const [account, setAccount] = useLocalStorage<AccountConfig>('gd_account', DEFAULT_ACCOUNT)
   const [apiKey, setApiKey] = useLocalStorage<string>('gd_apikey', '')
+  const [tdKey, setTdKey] = useLocalStorage<string>('gd_tdkey', '')
   const [trades, setTrades] = useLocalStorage<Trade[]>('gd_trades', [])
   const [levels, setLevels] = useLocalStorage<KeyLevel[]>('gd_levels', [])
   const [rawChecklist, setChecklist] = useLocalStorage<MacroChecklistState | null>(
@@ -34,6 +35,8 @@ export function useAppState() {
     setAccount,
     apiKey,
     setApiKey,
+    tdKey,
+    setTdKey,
     trades,
     setTrades,
     levels,

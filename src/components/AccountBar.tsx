@@ -3,12 +3,14 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import type { AccountConfig } from '../types/trading'
 import type { AccountState } from '../lib/ftmo'
+import type { GoldPrice } from '../lib/marketData'
 import { fmtSignedUsd, fmtUsd, phaseLabel } from '../lib/ftmo'
 import { cn } from '@/lib/utils'
 
 interface Props {
   account: AccountConfig
   state: AccountState
+  gold: GoldPrice | null
   onOpenSettings: () => void
   onOpenAgent: () => void
 }
@@ -44,7 +46,7 @@ function Meter({
   )
 }
 
-export function AccountBar({ account, state, onOpenSettings, onOpenAgent }: Props) {
+export function AccountBar({ account, state, gold, onOpenSettings, onOpenAgent }: Props) {
   const dailyUsed = state.maxDailyLoss > 0 ? state.dailyLossUsed / state.maxDailyLoss : 0
   const totalUsed = state.maxTotalLoss > 0 ? state.totalLossUsed / state.maxTotalLoss : 0
   const critical = state.tradesLeftOnRisk < 2
@@ -60,6 +62,16 @@ export function AccountBar({ account, state, onOpenSettings, onOpenAgent }: Prop
             <div className="text-sm font-semibold text-zinc-100">Gold Desk</div>
             <div className="text-[11px] text-zinc-500">{phaseLabel(account.phase)}</div>
           </div>
+          {gold && (
+            <Badge
+              variant="outline"
+              className="ml-1 gap-1.5 border-amber-500/40 bg-amber-500/10 text-xs text-amber-300 tabular-nums"
+              title={`gold-api · atualizado ${new Date(gold.updatedAt).toLocaleTimeString('pt-BR')}`}
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+              XAUUSD ${gold.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Badge>
+          )}
         </div>
 
         <div className="flex flex-1 flex-wrap items-center gap-x-6 gap-y-2">

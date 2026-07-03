@@ -6,6 +6,7 @@ import type {
   Trade,
 } from '../types/trading'
 import type { AccountState } from './ftmo'
+import type { GoldPrice } from './marketData'
 import { fmtSignedUsd, fmtUsd, phaseLabel, tradePnl } from './ftmo'
 import { MACRO_DRIVERS, biasLabel } from '../data/macroDrivers'
 import { SESSION_LABELS, currentSession } from '../data/sessions'
@@ -51,13 +52,20 @@ export interface AgentContext {
   biasFilled: number
   levels: KeyLevel[]
   trades: Trade[]
+  goldPrice: GoldPrice | null
 }
 
 export function buildContextBlock(ctx: AgentContext): string {
-  const { account, state, checklist, bias, biasFilled, levels } = ctx
+  const { account, state, checklist, bias, biasFilled, levels, goldPrice } = ctx
   const session = currentSession()
   const lines: string[] = []
 
+  if (goldPrice) {
+    lines.push(
+      `PREÇO XAUUSD AGORA: $${goldPrice.price.toFixed(2)} (spot via gold-api, ${new Date(goldPrice.updatedAt).toLocaleTimeString('pt-BR')})`,
+    )
+    lines.push('')
+  }
   lines.push(`ESTADO ATUAL DA CONTA (${new Date().toLocaleString('pt-BR')}):`)
   lines.push(`- ${phaseLabel(account.phase)} | conta $${fmtUsd(account.size)} | saldo $${fmtUsd(state.balance)}`)
   if (state.target > 0) {

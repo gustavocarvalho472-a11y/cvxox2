@@ -1,28 +1,55 @@
 import { useState } from 'react'
-import { Clock, Plus, Trash2 } from 'lucide-react'
+import { Clock, Loader2, Plus, Trash2, Zap } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { AppState } from '../hooks/useAppState'
 import { LEVEL_TYPES } from '../types/trading'
 import { AdvancedChart } from '../components/tradingview/widgets'
 import { TradeValidator } from '../components/TradeValidator'
 import { SESSIONS, currentSession } from '../data/sessions'
+import { computeSessionLevels, fetchXauCandles } from '../lib/marketData'
 
 interface Props {
   app: AppState
   onAskAgent: (prompt: string) => void
+  onOpenSettings: () => void
 }
 
 const inputCls =
   'rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-amber-500'
 
-export function SalaDeTrade({ app, onAskAgent }: Props) {
-  const { levels, setLevels, checklistDone } = app
+export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
+  const { levels, setLevels, checklistDone, tdKey } = app
   const [levelType, setLevelType] = useState<string>(LEVEL_TYPES[0])
   const [levelPrice, setLevelPrice] = useState('')
   const [levelNote, setLevelNote] = useState('')
+  const [autoBusy, setAutoBusy] = useState(false)
+  const [autoError, setAutoError] = useState<string | null>(null)
   const session = currentSession()
+
+  const pullAutoLevels = async () => {
+    if (!tdKey.trim()) {
+      setAutoError('no-key')
+      return
+    }
+    setAutoBusy(true)
+    setAutoError(null)
+    try {
+      const candles = await fetchXauCandles(tdKey.trim())
+      const autoLevels = computeSessionLevels(candles)
+      if (autoLevels.length === 0) {
+        setAutoError('Nenhum candle retornado para calcular níveis. Tente de novo em instantes.')
+      } else {
+        setLevels(prev => [...prev.filter(l => !l.auto), ...autoLevels])
+      }
+    } catch (err) {
+      setAutoError(err instanceof Error ? err.message : 'Erro ao buscar candles.')
+    } finally {
+      setAutoBusy(false)
+    }
+  }
 
   const addLevel = () => {
     const price = Number(levelPrice)
@@ -103,6 +130,26 @@ export function SalaDeTrade({ app, onAskAgent }: Props) {
                 Marque máx/mín de sessão, PDH/PDL, zonas e order blocks. O agente recebe esses
                 níveis em toda análise.
               </p>
+
+              <Button
+                onClick={pullAutoLevels}
+                disabled={autoBusy}
+                variant="outline"
+                className="w-full gap-2 border-amber-500/50 text-amber-300 hover:bg-amber-500/10"
+              >
+                {autoBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                Puxar níveis automáticos (PDH/PDL + sessões)
+              </Button>
+              {autoError === 'no-key' ? (
+                <p className="text-[11px] text-amber-300">
+                  Precisa da chave gratuita da Twelve Data.{' '}
+                  <button onClick={onOpenSettings} className="underline hover:text-amber-200">
+                    Abrir Configurações
+                  </button>
+                </p>
+              ) : (
+                autoError && <p className="text-[11px] text-red-400">{autoError}</p>
+              )}
               <div className="flex flex-wrap gap-2">
                 <select
                   className={cn(inputCls, 'flex-1')}
@@ -154,6 +201,9 @@ export function SalaDeTrade({ app, onAskAgent }: Props) {
                           {level.price.toFixed(2)}
                         </span>
                         <span className="text-zinc-300">{level.type}</span>
+                        {level.auto && (
+                          <span className="rounded bg-sky-500/15 px-1 text-[10px] text-sky-300">auto</span>
+                        )}
                         {level.note && <span className="truncate text-zinc-500">— {level.note}</span>}
                         <button
                           onClick={() => setLevels(prev => prev.filter(l => l.id !== level.id))}

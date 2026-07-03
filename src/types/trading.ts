@@ -45,6 +45,7 @@ export interface KeyLevel {
   price: number
   note: string
   createdAt: string
+  auto?: boolean // calculado automaticamente a partir dos candles (Twelve Data)
 }
 
 export interface TradeInput {
