@@ -14,7 +14,7 @@ interface Props {
 }
 
 const inputCls =
-  'w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500 tabular-nums'
+  'w-full rounded-xl glass-input px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500 tabular-nums'
 
 function RailIcon({ severity }: { severity: GuardRail['severity'] }) {
   if (severity === 'block') return <Ban className="h-4 w-4 shrink-0 text-red-400" />
@@ -78,7 +78,7 @@ export function TradeValidator({ app, onAskAgent }: Props) {
   }
 
   return (
-    <Card className="border-zinc-800 bg-zinc-900/60 text-zinc-100">
+    <Card className="glass-card text-zinc-100">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Validador de trade</CardTitle>
       </CardHeader>
@@ -137,7 +137,7 @@ export function TradeValidator({ app, onAskAgent }: Props) {
         </div>
 
         {calc.valid ? (
-          <div className="grid grid-cols-3 gap-2 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-center">
+          <div className="grid grid-cols-3 gap-2 glass-inset rounded-2xl p-3 text-center">
             <div>
               <div className="text-[11px] uppercase text-zinc-500">Lotes</div>
               <div className="text-lg font-bold text-amber-400 tabular-nums">

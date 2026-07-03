@@ -98,7 +98,7 @@ export function AgentDrawer({ open, onClose, agent, draft, setDraft }: Props) {
   return (
     <aside
       className={cn(
-        'fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-zinc-800 bg-zinc-950 shadow-2xl transition-transform duration-200',
+        'glass-strong fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col transition-transform duration-200',
         open ? 'translate-x-0' : 'translate-x-full',
       )}
     >
@@ -131,7 +131,7 @@ export function AgentDrawer({ open, onClose, agent, draft, setDraft }: Props) {
               <button
                 key={qp.label}
                 onClick={() => setDraft(qp.prompt)}
-                className="block w-full rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-left text-xs text-zinc-300 transition hover:border-amber-500/50"
+                className="block w-full rounded-md border glass-card px-3 py-2 text-left text-xs text-zinc-300 transition hover:border-amber-500/50"
               >
                 {qp.label}
               </button>
@@ -144,10 +144,10 @@ export function AgentDrawer({ open, onClose, agent, draft, setDraft }: Props) {
             <div
               key={m.id}
               className={cn(
-                'max-w-[92%] rounded-lg px-3 py-2 text-[13px] leading-relaxed',
+                'max-w-[92%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed',
                 m.role === 'user'
-                  ? 'ml-auto bg-amber-500/15 text-amber-50'
-                  : 'bg-zinc-900 text-zinc-200',
+                  ? 'ml-auto border border-amber-500/25 bg-amber-500/15 text-amber-50 backdrop-blur-md'
+                  : 'glass-inset text-zinc-200',
               )}
             >
               {m.imagePreview && (
@@ -222,7 +222,7 @@ export function AgentDrawer({ open, onClose, agent, draft, setDraft }: Props) {
             }}
             rows={2}
             placeholder={hasKey ? 'Pergunte, ou cole um print (Ctrl+V)…' : 'Configure a chave da API primeiro'}
-            className="flex-1 resize-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-amber-500"
+            className="flex-1 resize-none rounded-xl glass-input px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-amber-500"
           />
           <Button
             size="icon"
