@@ -10,11 +10,17 @@ export interface EconEvent {
 }
 
 const DIRECT_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json'
-// O feed não envia CORS — o allorigins repassa com os headers corretos
-const PROXY_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(DIRECT_URL)}`
+// O feed não envia CORS — proxies repassam com os headers corretos.
+// Ordem: direto (caso passem a liberar CORS) → allorigins → corsproxy
+const SOURCES = [
+  DIRECT_URL,
+  `https://api.allorigins.win/raw?url=${encodeURIComponent(DIRECT_URL)}`,
+  `https://corsproxy.io/?url=${encodeURIComponent(DIRECT_URL)}`,
+]
 
 const CACHE_KEY = 'gd_calendar_cache'
 const CACHE_TTL_MS = 60 * 60 * 1000
+const FETCH_TIMEOUT_MS = 8000
 
 interface CacheShape {
   fetchedAt: number
@@ -31,31 +37,42 @@ function readCache(): CacheShape | null {
   }
 }
 
+// AbortController manual (compatível com iOS antigo, sem AbortSignal.timeout)
 async function fetchJson(url: string): Promise<EconEvent[]> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`calendário respondeu ${res.status}`)
-  const data = (await res.json()) as EconEvent[]
-  if (!Array.isArray(data)) throw new Error('formato inesperado do calendário')
-  return data
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS)
+  try {
+    const res = await fetch(url, { signal: ctrl.signal })
+    if (!res.ok) throw new Error(`calendário respondeu ${res.status}`)
+    const data = (await res.json()) as EconEvent[]
+    if (!Array.isArray(data)) throw new Error('formato inesperado do calendário')
+    return data
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export async function fetchWeekCalendar(force = false): Promise<EconEvent[]> {
   const cached = readCache()
   if (!force && cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) return cached.events
 
-  let events: EconEvent[]
-  try {
-    events = await fetchJson(DIRECT_URL)
-  } catch {
-    events = await fetchJson(PROXY_URL)
+  for (const url of SOURCES) {
+    try {
+      const events = await fetchJson(url)
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), events }))
+      } catch {
+        // sem espaço no storage — segue sem cache
+      }
+      return events
+    } catch {
+      // tenta a próxima fonte
+    }
   }
 
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), events }))
-  } catch {
-    // sem espaço no storage — segue sem cache
-  }
-  return events
+  // Todas as fontes falharam: melhor um calendário de algumas horas atrás do que nenhum
+  if (cached) return cached.events
+  throw new Error('calendário indisponível em todas as fontes')
 }
 
 // Eventos que mexem no ouro: USD alto/médio impacto + alto impacto de EUR/CNY

@@ -16,6 +16,17 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Auto-cura de cache velho: se o bundle (hash antigo → 404) não montar o app
+      // em 4s, recarrega UMA vez com cache-buster. Guarda em sessionStorage evita loop.
+      setTimeout(function () {
+        var root = document.getElementById('root');
+        if (root && root.childElementCount === 0 && !sessionStorage.getItem('gd_cachefix')) {
+          sessionStorage.setItem('gd_cachefix', '1');
+          location.replace(location.pathname + '?v=' + Date.now());
+        }
+      }, 4000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
