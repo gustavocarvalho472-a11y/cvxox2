@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ClipboardEvent, ReactNode } from 'react'
-import { Globe, ImagePlus, Send, Trash2, X } from 'lucide-react'
+import { Globe, ImagePlus, RefreshCw, Send, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -68,7 +68,7 @@ async function fileToAgentImage(file: File): Promise<AgentImage | null> {
 }
 
 export function AgentDrawer({ open, onClose, agent, draft, setDraft }: Props) {
-  const { messages, streaming, searching, error, hasKey, sendMessage, clear } = agent
+  const { messages, streaming, searching, error, hasKey, sendMessage, clear, retryLast, canRetry } = agent
   const [image, setImage] = useState<AgentImage | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -170,7 +170,20 @@ export function AgentDrawer({ open, onClose, agent, draft, setDraft }: Props) {
             <Globe className="h-3.5 w-3.5 animate-spin" /> pesquisando na web…
           </div>
         )}
-        {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+        {error && (
+          <div className="mt-2 space-y-2">
+            <p className="text-xs text-red-400">{error}</p>
+            {canRetry && !streaming && (
+              <Button
+                size="sm"
+                onClick={retryLast}
+                className="gap-1.5 bg-amber-500 text-zinc-950 hover:bg-amber-400"
+              >
+                <RefreshCw className="h-3.5 w-3.5" /> Tentar de novo
+              </Button>
+            )}
+          </div>
+        )}
         <div ref={bottomRef} />
       </ScrollArea>
 
