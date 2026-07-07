@@ -16,6 +16,28 @@ export interface DisplayMessage {
 
 const MODEL = 'claude-sonnet-5'
 const MAX_CONTINUATIONS = 4
+// Janela de histórico enviada à API: mantém payload leve (celular) e custo baixo;
+// o contexto vivo (conta/viés/níveis/eventos) é reinjetado no system a cada chamada
+const MAX_HISTORY_SENT = 12
+// Retry automático p/ falha de rede ("Load failed" do Safari iOS em rede móvel)
+const NETWORK_RETRIES = 2
+
+function isNetworkError(err: unknown): boolean {
+  if (err instanceof Anthropic.APIConnectionError) return true
+  return (
+    err instanceof Error &&
+    /load failed|failed to fetch|networkerror|network request failed|connection error/i.test(err.message)
+  )
+}
+
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
+
+function windowedHistory(history: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  let msgs = history.slice(-MAX_HISTORY_SENT)
+  // a API exige que a conversa comece com role user
+  while (msgs.length > 0 && msgs[0].role !== 'user') msgs = msgs.slice(1)
+  return msgs
+}
 
 function getApiKey(userKey: string): string {
   // trim: chave colada no celular costuma vir com espaço/quebra de linha no fim
@@ -70,6 +92,7 @@ export function useAgent(apiKeyFromSettings: string, buildContext: () => string)
   const [error, setError] = useState<string | null>(null)
   const historyRef = useRef<Anthropic.MessageParam[]>(initial.history)
   const displayRef = useRef<DisplayMessage[]>(initial.display)
+  const lastFailedRef = useRef<{ text: string; image?: AgentImage } | null>(null)
 
   const setMessages = (updater: (prev: DisplayMessage[]) => DisplayMessage[]) => {
     setMessagesState(prev => {
@@ -131,31 +154,47 @@ export function useAgent(apiKeyFromSettings: string, buildContext: () => string)
 
       try {
         for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
-          const stream = client.messages.stream({
-            model: MODEL,
-            max_tokens: 6000,
-            system,
-            messages: historyRef.current,
-            tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }],
-          })
+          // Retry automático de rede: só quando ainda não chegou nenhum texto
+          let final: Anthropic.Message | null = null
+          for (let attempt = 0; ; attempt++) {
+            try {
+              const stream = client.messages.stream({
+                model: MODEL,
+                max_tokens: 6000,
+                system,
+                messages: windowedHistory(historyRef.current),
+                tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }],
+              })
 
-          stream.on('streamEvent', event => {
-            if (
-              event.type === 'content_block_start' &&
-              event.content_block.type === 'server_tool_use'
-            ) {
-              setSearching(true)
-            }
-            if (
-              event.type === 'content_block_delta' &&
-              event.delta.type === 'text_delta'
-            ) {
-              setSearching(false)
-              appendText(event.delta.text)
-            }
-          })
+              stream.on('streamEvent', event => {
+                if (
+                  event.type === 'content_block_start' &&
+                  event.content_block.type === 'server_tool_use'
+                ) {
+                  setSearching(true)
+                }
+                if (
+                  event.type === 'content_block_delta' &&
+                  event.delta.type === 'text_delta'
+                ) {
+                  setSearching(false)
+                  appendText(event.delta.text)
+                }
+              })
 
-          const final = await stream.finalMessage()
+              final = await stream.finalMessage()
+              break
+            } catch (err) {
+              if (isNetworkError(err) && !accumulated && attempt < NETWORK_RETRIES) {
+                await delay(1000 * (attempt + 1))
+                continue
+              }
+              throw err
+            }
+          }
+
+          if (!final) throw new Error('sem resposta do modelo')
+          lastFailedRef.current = null
           historyRef.current = [...historyRef.current, { role: 'assistant', content: final.content }]
 
           if (final.stop_reason !== 'pause_turn') break
@@ -163,26 +202,24 @@ export function useAgent(apiKeyFromSettings: string, buildContext: () => string)
         }
       } catch (err) {
         let friendly = 'Erro ao falar com o agente.'
-        const isNetworkError =
-          err instanceof Anthropic.APIConnectionError ||
-          (err instanceof TypeError && /load failed|failed to fetch|network/i.test(err.message))
         if (err instanceof Anthropic.AuthenticationError) {
           friendly = 'Chave da API inválida. Verifique nas Configurações e use "Testar conexão".'
         } else if (err instanceof Anthropic.RateLimitError) {
           friendly = 'Limite de requisições atingido. Aguarde um momento e tente de novo.'
-        } else if (isNetworkError) {
+        } else if (isNetworkError(err)) {
           friendly =
-            'Falha de rede ao chamar a API da Anthropic. Checklist: (1) abra Configurações e use "Testar conexão" para validar a chave; (2) se estiver no celular, desative VPN/bloqueador de conteúdo para este site; (3) recarregue a página (segure o botão de recarregar para forçar) e tente de novo.'
+            'A conexão caiu no meio da resposta (comum em rede móvel). Já tentei 3 vezes — toque em "Tentar de novo", ou aproxime-se do Wi-Fi. Se persistir, desative VPN/Relay Privado para este site.'
         } else if (err instanceof Anthropic.APIError) {
           friendly = `Erro da API (${err.status}): ${err.message}`
         } else if (err instanceof Error) {
           friendly = err.message
         }
         setError(friendly)
-        // remove a bolha vazia do assistente se nada foi gerado
+        // remove a bolha vazia do assistente e devolve a mensagem p/ retry
         if (!accumulated) {
-          setMessages(prev => prev.filter(m => m.id !== assistantId))
+          setMessages(prev => prev.filter(m => m.id !== assistantId && m.id !== userMsg.id))
           historyRef.current = historyRef.current.slice(0, -1)
+          lastFailedRef.current = { text, image }
         }
       } finally {
         setStreaming(false)
@@ -206,5 +243,14 @@ export function useAgent(apiKeyFromSettings: string, buildContext: () => string)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { messages, streaming, searching, error, hasKey, sendMessage, clear }
+  const retryLast = useCallback(() => {
+    const failed = lastFailedRef.current
+    if (!failed) return
+    lastFailedRef.current = null
+    void sendMessage(failed.text, failed.image)
+  }, [sendMessage])
+
+  const canRetry = lastFailedRef.current !== null
+
+  return { messages, streaming, searching, error, hasKey, sendMessage, clear, retryLast, canRetry }
 }
