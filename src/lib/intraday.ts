@@ -184,19 +184,40 @@ function findSwings(c30: ICandle[], k = 2): { highs: Swing[]; lows: Swing[] } {
   return { highs, lows }
 }
 
-function cluster(swings: Swing[], tol: number): { price: number; touches: number }[] {
+interface Cluster {
+  price: number
+  touches: number
+  lastIdx: number
+}
+
+function cluster(swings: Swing[], tol: number): Cluster[] {
   const sorted = [...swings].sort((a, b) => a.price - b.price)
-  const out: { price: number; touches: number }[] = []
+  const out: Cluster[] = []
   for (const s of sorted) {
     const last = out[out.length - 1]
     if (last && Math.abs(s.price - last.price) <= tol) {
       last.price = (last.price * last.touches + s.price) / (last.touches + 1)
       last.touches++
+      last.lastIdx = Math.max(last.lastIdx, s.idx)
     } else {
-      out.push({ price: s.price, touches: 1 })
+      out.push({ price: s.price, touches: 1, lastIdx: s.idx })
     }
   }
   return out
+}
+
+// Topo/fundo "expressivo": mesmo com 1 toque, é o extremo de uma janela
+// de ±16 buckets de 30m (~8h pra cada lado) — liquidez válida pelo contexto
+const EXPRESSIVE_WINDOW = 16
+
+function isExpressive(c30: ICandle[], cl: Cluster, side: 'low' | 'high', tol: number): boolean {
+  const from = Math.max(0, cl.lastIdx - EXPRESSIVE_WINDOW)
+  const to = Math.min(c30.length - 1, cl.lastIdx + EXPRESSIVE_WINDOW)
+  for (let i = from; i <= to; i++) {
+    if (side === 'low' && c30[i].low < cl.price - tol) return false
+    if (side === 'high' && c30[i].high > cl.price + tol) return false
+  }
+  return true
 }
 
 function kindLabel(base: 'fundo' | 'topo', touches: number): string {
@@ -220,24 +241,34 @@ export function computeLiquidity(c15: ICandle[], spot: number): LiquidityMap {
   for (const cl of cluster(lows, tol)) {
     if (cl.price >= spot) continue // fundo já rompido não guarda stop abaixo do preço
     const isPeriodLow = Math.abs(cl.price - periodLow) <= tol
-    if (cl.touches < 2 && !isPeriodLow) continue
+    const expressive = cl.touches < 2 && !isPeriodLow && isExpressive(c30, cl, 'low', tol)
+    if (cl.touches < 2 && !isPeriodLow && !expressive) continue
     pools.push({
       price: cl.price,
       side: 'below',
       touches: cl.touches,
-      kind: isPeriodLow ? `fundo do período (${cl.touches} toque${cl.touches > 1 ? 's' : ''})` : kindLabel('fundo', cl.touches),
+      kind: isPeriodLow
+        ? `fundo do período (${cl.touches} toque${cl.touches > 1 ? 's' : ''})`
+        : expressive
+          ? 'fundo expressivo'
+          : kindLabel('fundo', cl.touches),
       distPct: ((spot - cl.price) / spot) * 100,
     })
   }
   for (const cl of cluster(highs, tol)) {
     if (cl.price <= spot) continue
     const isPeriodHigh = Math.abs(cl.price - periodHigh) <= tol
-    if (cl.touches < 2 && !isPeriodHigh) continue
+    const expressive = cl.touches < 2 && !isPeriodHigh && isExpressive(c30, cl, 'high', tol)
+    if (cl.touches < 2 && !isPeriodHigh && !expressive) continue
     pools.push({
       price: cl.price,
       side: 'above',
       touches: cl.touches,
-      kind: isPeriodHigh ? `topo do período (${cl.touches} toque${cl.touches > 1 ? 's' : ''})` : kindLabel('topo', cl.touches),
+      kind: isPeriodHigh
+        ? `topo do período (${cl.touches} toque${cl.touches > 1 ? 's' : ''})`
+        : expressive
+          ? 'topo expressivo'
+          : kindLabel('topo', cl.touches),
       distPct: ((cl.price - spot) / spot) * 100,
     })
   }
@@ -265,4 +296,33 @@ export function computeLiquidity(c15: ICandle[], spot: number): LiquidityMap {
   }
 
   return { pools: final, narrative }
+}
+
+// ── Regiões de agressão: candle com volume muito acima da média ──────────
+// Proxy honesto de "agressão" com OHLCV: volume anômalo (≥1.8× a média dos
+// últimos 20 candles) + direção definida. Azul = agressão compradora,
+// vermelho = vendedora; strength dimensiona a bolha no gráfico.
+
+export interface AggressionMark {
+  t: number // epoch segundos do candle (30m)
+  side: 'buy' | 'sell'
+  strength: number // volume ÷ média (ex.: 2.4 = 2,4× o normal)
+}
+
+export function computeAggression(
+  c30: ICandle[],
+  lookback = 20,
+  minRatio = 1.8,
+): AggressionMark[] {
+  const out: AggressionMark[] = []
+  for (let i = 1; i < c30.length; i++) {
+    const win = c30.slice(Math.max(0, i - lookback), i)
+    const avg = win.reduce((s, c) => s + c.vol, 0) / win.length
+    if (avg <= 0) continue
+    const ratio = c30[i].vol / avg
+    if (ratio >= minRatio && c30[i].close !== c30[i].open) {
+      out.push({ t: c30[i].t, side: c30[i].close > c30[i].open ? 'buy' : 'sell', strength: ratio })
+    }
+  }
+  return out
 }
