@@ -307,8 +307,12 @@ export interface AggressionMark {
   t: number // epoch segundos do candle (30m)
   side: 'buy' | 'sell'
   strength: number // volume ÷ média (ex.: 2.4 = 2,4× o normal)
+  exhaustion: boolean // venda agressiva no fundo do range de 24h = capitulação
 }
 
+// Backtest 1 ano PAXG 30m (docs/estudos/2026-07): venda agressiva no fundo
+// do range de 24h precede alta em 58% dos casos (+5,5 bps/4h vs +1,1 base) —
+// capitulação sendo absorvida. Bolha compradora no fundo NÃO prevê alta (46%).
 export function computeAggression(
   c30: ICandle[],
   lookback = 20,
@@ -321,7 +325,19 @@ export function computeAggression(
     if (avg <= 0) continue
     const ratio = c30[i].vol / avg
     if (ratio >= minRatio && c30[i].close !== c30[i].open) {
-      out.push({ t: c30[i].t, side: c30[i].close > c30[i].open ? 'buy' : 'sell', strength: ratio })
+      const side = c30[i].close > c30[i].open ? 'buy' : 'sell'
+      let exhaustion = false
+      if (side === 'sell') {
+        const from = Math.max(0, i - 47)
+        let lo = Infinity
+        let hi = -Infinity
+        for (let j = from; j <= i; j++) {
+          if (c30[j].low < lo) lo = c30[j].low
+          if (c30[j].high > hi) hi = c30[j].high
+        }
+        exhaustion = hi > lo && (c30[i].close - lo) / (hi - lo) < 0.25
+      }
+      out.push({ t: c30[i].t, side, strength: ratio, exhaustion })
     }
   }
   return out
