@@ -40,7 +40,8 @@ export function AdvancedChart({ height = '100%' }: { height?: number | string })
         details: false,
         hotlist: false,
         calendar: false,
-        studies: ['STD;Visible%1Average%1Price'],
+        // VWAP visível + volume embaixo (OANDA manda tick volume p/ XAUUSD)
+        studies: ['STD;Visible%1Average%1Price', 'Volume@tv-basicstudies'],
         support_host: 'https://www.tradingview.com',
       }}
     />
