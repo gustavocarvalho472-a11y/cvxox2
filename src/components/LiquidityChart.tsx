@@ -3,6 +3,8 @@ import { CandlestickSeries, HistogramSeries, LineStyle, createChart } from 'ligh
 import type { UTCTimestamp } from 'lightweight-charts'
 import { fetchGold15m, resample30m } from '../lib/intraday'
 import type { ICandle, LiquidityPool } from '../lib/intraday'
+import { computeVolumeProfile } from '../lib/volumeProfile'
+import { VolumeProfilePrimitive } from './volumeProfilePrimitive'
 
 // Nosso próprio gráfico de 30m (lightweight-charts, roda 100% no app):
 // candles PAXG ≈ XAUUSD, volume compra/venda embaixo e as linhas de
@@ -102,6 +104,20 @@ export function LiquidityChart({ pools, height = 280 }: Props) {
       })),
     )
 
+    // Perfil de volume (range dos ~3 dias carregados) + POC no eixo
+    const profile = computeVolumeProfile(candles)
+    if (profile) {
+      candleSeries.attachPrimitive(new VolumeProfilePrimitive(profile))
+      candleSeries.createPriceLine({
+        price: profile.poc,
+        color: '#38bdf8',
+        lineWidth: 1,
+        lineStyle: LineStyle.Dotted,
+        axisLabelVisible: true,
+        title: 'POC',
+      })
+    }
+
     for (const pool of pools ?? []) {
       candleSeries.createPriceLine({
         price: pool.price,
@@ -133,7 +149,9 @@ export function LiquidityChart({ pools, height = 280 }: Props) {
     <div>
       <div ref={boxRef} style={{ height }} />
       <p className="px-2 pb-1 pt-1.5 text-[10px] leading-snug text-zinc-600">
-        PAXG ≈ XAUUSD (Coinbase) · 30min · horário de Brasília · volume real compra/venda ·
+        PAXG ≈ XAUUSD (Coinbase) · 30min · horário de Brasília · barras laterais = perfil de
+        volume por preço (azul = POC, o preço mais negociado; faixa mais forte = área de valor
+        70%) ·
         {(pools?.length ?? 0) > 0
           ? ' linhas tracejadas = liquidez mapeada'
           : ' calcule o viés na Pré-Sessão para marcar a liquidez'}
