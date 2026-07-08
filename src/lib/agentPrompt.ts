@@ -98,6 +98,20 @@ export function buildContextBlock(ctx: AgentContext): string {
       lines.push(`- ${arrow} ${c.label}: ${c.detail}`)
     }
     if (autoBias.caution) lines.push(`- ⚠️ ${autoBias.caution}`)
+    if (autoBias.intraday) {
+      lines.push('')
+      lines.push(`LEITURA INTRADIÁRIA (na hora do cálculo): ${autoBias.intraday.headline}`)
+      lines.push(`- ${autoBias.intraday.confluence}`)
+    }
+    if (autoBias.liquidity && autoBias.liquidity.pools.length > 0) {
+      lines.push('LIQUIDEZ NO 30m (fundos/topos com stops acumulados):')
+      for (const pool of autoBias.liquidity.pools) {
+        lines.push(
+          `- ${pool.side === 'above' ? '▲' : '▼'} $${pool.price.toFixed(1)} — ${pool.kind}, ${pool.distPct.toFixed(2)}% ${pool.side === 'above' ? 'acima' : 'abaixo'} do preço`,
+        )
+      }
+      if (autoBias.liquidity.narrative) lines.push(`- Cenário: ${autoBias.liquidity.narrative}`)
+    }
   }
 
   lines.push('')

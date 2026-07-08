@@ -13,6 +13,7 @@ import { fetchDailyCloses, fetchEurDailyFree, fetchGoldDailyFree } from '../lib/
 import { computeAutoBias } from '../lib/autoBias'
 import type { AutoBiasResult } from '../lib/autoBias'
 import { buildMacroSummary } from '../lib/macroSummary'
+import { computeLiquidity, computeNowReading, fetchEurUsd15m, fetchGold15m } from '../lib/intraday'
 
 interface Props {
   app: AppState
@@ -47,8 +48,8 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
 
   // Resumo do dia direto no painel — derivado do viés + calendário, sem chat
   const summary = useMemo(
-    () => (autoBias ? buildMacroSummary(autoBias, calendar.next24h) : null),
-    [autoBias, calendar.next24h],
+    () => (autoBias ? buildMacroSummary(autoBias, calendar.next24h, new Date(), calendar.activeEvent) : null),
+    [autoBias, calendar.next24h, calendar.activeEvent],
   )
 
   const setReading = (driverId: string, optionId: string) => {
@@ -74,15 +75,27 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
             fetchDailyCloses('EUR/USD', tdKey.trim()),
           ])
         : await Promise.all([fetchGoldDailyFree(), fetchEurDailyFree()])
-      const result = computeAutoBias(
+      let result = computeAutoBias(
         xau,
         eur,
         useTd ? (gold?.price ?? null) : null,
         calendar.todayHigh,
       )
       result.source = useTd ? 'Twelve Data (XAU spot)' : 'Coinbase PAXG + BCE (sem chave)'
+      // O viés diário aparece já; a leitura de AGORA (15min/1h/4h, volume,
+      // dólar intradiário, liquidez 30m) enriquece em seguida — e é bônus:
+      // se a fonte intradiária falhar, o resto fica de pé.
       setAutoBias(result)
       setCorrelation(result.correlation)
+      try {
+        const [g15, eur15] = await Promise.all([fetchGold15m(), fetchEurUsd15m()])
+        const intraday = computeNowReading(g15, eur15)
+        const liquidity = computeLiquidity(g15, intraday.price)
+        result = { ...result, intraday, liquidity }
+        setAutoBias(result)
+      } catch {
+        // sem intradiário desta vez
+      }
       if (agentReady) {
         onSendAgent(briefingPrompt(result))
         setBriefingSent(true)
@@ -156,14 +169,84 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
 
           {summary && (
             <div className="mt-3 glass-inset rounded-2xl p-3.5 text-[13px] leading-relaxed text-zinc-200">
-              <div className="text-[11px] font-medium uppercase tracking-widest text-zinc-500">
-                Resumo do dia
+              {/* 1. AGORA — a leitura operacional vem primeiro */}
+              {autoBias?.intraday && (
+                <div>
+                  <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-widest text-zinc-500">
+                    🎯 Agora
+                    <span className="flex gap-2 normal-case tracking-normal">
+                      {([
+                        ['15min', autoBias.intraday.m15],
+                        ['1h', autoBias.intraday.h1],
+                        ['4h', autoBias.intraday.h4],
+                      ] as const).map(([tf, mv]) => (
+                        <span key={tf} className="rounded-full glass-card border px-2 py-0.5 text-[10px] tabular-nums">
+                          {tf}{' '}
+                          <span
+                            className={cn(
+                              'font-bold',
+                              mv.dir === 'up' && 'text-emerald-400',
+                              mv.dir === 'down' && 'text-red-400',
+                              mv.dir === 'flat' && 'text-zinc-500',
+                            )}
+                          >
+                            {mv.dir === 'up' ? '↑' : mv.dir === 'down' ? '↓' : '→'}{' '}
+                            {mv.pct >= 0 ? '+' : ''}
+                            {mv.pct.toFixed(2)}%
+                          </span>
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 font-semibold text-zinc-100">{autoBias.intraday.headline}</p>
+                  <p className="mt-0.5 text-zinc-300">{autoBias.intraday.confluence}</p>
+                </div>
+              )}
+
+              {/* 2. LIQUIDEZ no 30m — onde os stops estão acumulados */}
+              {autoBias?.liquidity && autoBias.liquidity.pools.length > 0 && (
+                <div className={cn(autoBias?.intraday && 'mt-2.5 border-t border-zinc-700/50 pt-2.5')}>
+                  <div className="text-[11px] font-medium uppercase tracking-widest text-zinc-500">
+                    💧 Liquidez (gráfico 30m)
+                  </div>
+                  <ul className="mt-1.5 space-y-1">
+                    {autoBias.liquidity.pools.map(pool => (
+                      <li key={`${pool.side}${pool.price}`} className="flex items-baseline gap-2 tabular-nums">
+                        <span
+                          className={cn(
+                            'shrink-0 font-bold',
+                            pool.side === 'above' ? 'text-emerald-400' : 'text-red-400',
+                          )}
+                        >
+                          {pool.side === 'above' ? '▲' : '▼'} ${pool.price.toFixed(0)}
+                        </span>
+                        <span className="text-zinc-400">
+                          {pool.kind} · {pool.distPct.toFixed(2)}% {pool.side === 'above' ? 'acima' : 'abaixo'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {autoBias.liquidity.narrative && (
+                    <p className="mt-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-200">
+                      {autoBias.liquidity.narrative}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 3. Pano de fundo diário */}
+              <div className={cn((autoBias?.intraday || (autoBias?.liquidity?.pools.length ?? 0) > 0) && 'mt-2.5 border-t border-zinc-700/50 pt-2.5')}>
+                <div className="text-[11px] font-medium uppercase tracking-widest text-zinc-500">
+                  📊 Pano de fundo (diário)
+                </div>
+                <p className={cn('mt-1 font-semibold', biasTone.text)}>{summary.headline}</p>
+                <p className="mt-1 text-zinc-300">{summary.dollarLine}</p>
+                <p className="text-zinc-300">{summary.correlationLine}</p>
               </div>
-              <p className={cn('mt-1 font-semibold', biasTone.text)}>{summary.headline}</p>
-              <p className="mt-1 text-zinc-300">{summary.dollarLine}</p>
-              <p className="text-zinc-300">{summary.correlationLine}</p>
+
+              {/* 4. Notícias — segunda etapa, com contagem regressiva */}
               {summary.eventsIntro ? (
-                <div className="mt-2 border-t border-zinc-700/50 pt-2">
+                <div className="mt-2.5 border-t border-zinc-700/50 pt-2.5">
                   <p className="text-zinc-300">📅 {summary.eventsIntro}</p>
                   <ul className="mt-1.5 space-y-1.5">
                     {summary.eventReadings.map(ev => (
@@ -183,8 +266,8 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
                   </ul>
                 </div>
               ) : (
-                <p className="mt-2 border-t border-zinc-700/50 pt-2 text-zinc-400">
-                  📅 Sem notícias relevantes nas próximas 24h — o técnico manda.
+                <p className="mt-2.5 border-t border-zinc-700/50 pt-2.5 text-zinc-400">
+                  📅 Sem notícia relevante nas próximas 24h — pista livre pro técnico.
                 </p>
               )}
             </div>

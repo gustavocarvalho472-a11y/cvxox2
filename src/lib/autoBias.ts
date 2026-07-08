@@ -3,6 +3,7 @@ import type { EconEvent } from './calendar'
 import { fmtBrt } from './calendar'
 import type { CorrelationResult, DailyClose } from './marketData'
 import { computeXauUsdCorrelation, correlationRegime } from './marketData'
+import type { LiquidityMap, NowReading } from './intraday'
 
 export interface BiasComponent {
   id: string
@@ -21,6 +22,8 @@ export interface AutoBiasResult {
   correlation: CorrelationResult
   computedAt: string
   source?: string // de onde vieram os candles (Twelve Data ou fontes gratuitas)
+  intraday?: NowReading // leitura de agora (15min/1h/4h + volume + dólar intradiário)
+  liquidity?: LiquidityMap // mapa de liquidez do gráfico de 30m
 }
 
 function asc(series: DailyClose[]): DailyClose[] {
