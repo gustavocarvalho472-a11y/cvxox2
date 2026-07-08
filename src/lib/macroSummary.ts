@@ -57,9 +57,27 @@ function directionLine(kind: EventKind): string {
   }
 }
 
-const MAX_EVENTS_IN_SUMMARY = 4
+const MAX_EVENTS_IN_SUMMARY = 3
 
-export function buildMacroSummary(result: AutoBiasResult, next24h: EconEvent[]): MacroSummary {
+// "em 45 min" / "em 3h20" / "amanhã às 09:30"
+function countdownTxt(iso: string, now: Date): string {
+  const mins = Math.round((new Date(iso).getTime() - now.getTime()) / 60_000)
+  if (mins < 60) return `em ${mins} min`
+  const todayBrt = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const evDayBrt = new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const hhmm = fmtBrt(iso)
+  if (evDayBrt !== todayBrt) return `amanhã às ${hhmm}`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return `em ${h}h${m > 0 ? String(m).padStart(2, '0') : ''} (${hhmm})`
+}
+
+export function buildMacroSummary(
+  result: AutoBiasResult,
+  next24h: EconEvent[],
+  now = new Date(),
+  activeEvent: EconEvent | null = null,
+): MacroSummary {
   const label = biasLabel(result.bias)
   const scoreTxt = `${result.score > 0 ? '+' : ''}${result.score}/${result.maxScore}`
   const headline =
@@ -86,7 +104,9 @@ export function buildMacroSummary(result: AutoBiasResult, next24h: EconEvent[]):
         ? `Ouro DESACOPLADO do dólar (${corrTxt}): demanda estrutural comprando — siga o fluxo do próprio ouro, não o DXY.`
         : `Correlação fraca (${corrTxt}): o dólar não está mandando no ouro nesta janela — priorize o técnico.`
 
-  const upcoming = next24h.slice(0, MAX_EVENTS_IN_SUMMARY)
+  // Notícia é segunda etapa: primeiro diga QUANDO ela chega — até lá, o técnico manda
+  const future = next24h.filter(e => new Date(e.date).getTime() > now.getTime())
+  const upcoming = future.slice(0, MAX_EVENTS_IN_SUMMARY)
   const eventReadings: EventReading[] = upcoming.map((e, i) => ({
     key: `${e.date}_${i}`,
     timeBrt: fmtBrt(e.date, true),
@@ -95,9 +115,10 @@ export function buildMacroSummary(result: AutoBiasResult, next24h: EconEvent[]):
     line: directionLine(classifyEvent(e)),
   }))
 
-  const eventsIntro =
-    eventReadings.length > 0
-      ? `Notícias das próximas 24h que podem mexer o ponteiro${eventReadings.length === 1 ? '' : ` (${eventReadings.length})`}:`
+  const eventsIntro = activeEvent
+    ? `🔴 ${activeEvent.title} está na janela AGORA (${fmtBrt(activeEvent.date)}) — spread e violência de preço; fique fora até o mercado digerir.`
+    : future.length > 0
+      ? `Sem notícia agora — a próxima é ${countdownTxt(future[0].date, now)}. Até lá, o técnico manda. Quando sair:`
       : null
 
   return { headline, dollarLine, correlationLine, eventsIntro, eventReadings }
