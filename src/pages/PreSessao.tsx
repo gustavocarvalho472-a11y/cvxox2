@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import type { AppState } from '../hooks/useAppState'
 import { MACRO_DRIVERS, STRUCTURAL_DRIVERS, biasLabel } from '../data/macroDrivers'
 import { EconomicCalendar, MiniChart } from '../components/tradingview/widgets'
+import { LiquidityChart } from '../components/LiquidityChart'
 import { todayStr } from '../lib/ftmo'
 import { fmtBrt } from '../lib/calendar'
 import { fetchDailyCloses, fetchEurDailyFree, fetchGoldDailyFree } from '../lib/marketData'
@@ -304,6 +305,18 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
             </p>
           )}
           {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+        </CardContent>
+      </Card>
+
+      {/* Gráfico próprio: volume real + linhas de liquidez desenhadas */}
+      <Card className="glass-card text-zinc-100">
+        <CardHeader className="pb-1">
+          <CardTitle className="text-sm text-zinc-200">
+            💧 Volume + liquidez no 30m — linhas no gráfico
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-1 pt-0">
+          <LiquidityChart pools={autoBias?.liquidity?.pools} />
         </CardContent>
       </Card>
 

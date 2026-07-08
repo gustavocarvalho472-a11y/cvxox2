@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import type { AppState } from '../hooks/useAppState'
 import { LEVEL_TYPES } from '../types/trading'
 import { AdvancedChart } from '../components/tradingview/widgets'
+import { LiquidityChart } from '../components/LiquidityChart'
 import { TradeValidator } from '../components/TradeValidator'
 import { SESSIONS, currentSession } from '../data/sessions'
 import { computeSessionLevels, fetchGoldCandles15mFree, fetchXauCandles } from '../lib/marketData'
@@ -82,6 +83,17 @@ export function SalaDeTrade({ app, onAskAgent, onOpenSettings }: Props) {
               <div style={{ height: 560 }}>
                 <AdvancedChart height={558} />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card text-zinc-100">
+            <CardHeader className="pb-1">
+              <CardTitle className="text-sm text-zinc-200">
+                💧 Volume + liquidez no 30m — linhas no gráfico
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-1 pt-0">
+              <LiquidityChart pools={app.autoBias?.liquidity?.pools} height={250} />
             </CardContent>
           </Card>
 
