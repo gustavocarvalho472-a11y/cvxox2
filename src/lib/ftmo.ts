@@ -201,6 +201,11 @@ export function evaluateGuardRails(ctx: GuardContext): GuardRail[] {
       severity: 'warn',
       message: `R:R de 1:${calc.rr.toFixed(1)} — abaixo de 1:2. Com winrate típico de SMC, esse trade tem expectativa fraca.`,
     })
+  } else if (calc.rr > 0 && calc.rr < 3) {
+    rails.push({
+      severity: 'info',
+      message: `R:R de 1:${calc.rr.toFixed(1)} — seu playbook pede alvo de 3R. Confira se a estrutura não entrega mais antes da próxima liquidez contrária.`,
+    })
   }
   if (calc.rr === 0) {
     rails.push({ severity: 'info', message: 'Sem alvo definido — defina o alvo antes de entrar, não depois.' })

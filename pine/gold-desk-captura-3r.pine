@@ -1,0 +1,102 @@
+//@version=5
+// ═══════════════════════════════════════════════════════════════════
+//  GOLD DESK — Captura de Liquidez + 3R (playbook do Gustavo)
+//
+//  Contexto:  preço varre um topo/fundo óbvio (pivô = liquidez) e
+//             FECHA de volta do lado de dentro → captura de liquidez.
+//  Gatilho:   depois da captura, o preço rompe a micro-estrutura na
+//             direção oposta (proxy da "validação no 1min" do playbook:
+//             fechar além do extremo das últimas N barras).
+//  Take loss: sempre além do extremo da captura — se revisitar, morreu.
+//  Alvo:      3x o risco (ajustável).
+//  Risco:     dimensionado em USD por trade, estilo FTMO
+//             (XAUUSD: 1 unidade = 1 oz → $1 de movimento = $1/unid).
+//
+//  Use no gráfico de 5min ou 15min do OANDA:XAUUSD.
+//  Honestidade: a validação real do playbook é no 1min discricionário;
+//  aqui ela é aproximada pelo micro-rompimento no timeframe do gráfico.
+//  O backtest mostra a MECÂNICA do setup, não substitui sua leitura.
+// ═══════════════════════════════════════════════════════════════════
+strategy("Gold Desk — Captura de Liquidez + 3R",
+     shorttitle="GD Sweep 3R",
+     overlay=true,
+     initial_capital=100000,
+     currency=currency.USD,
+     process_orders_on_close=true,
+     calc_on_every_tick=false)
+
+// ── Parâmetros ─────────────────────────────────────────────────────
+pivLen     = input.int(10,    "Pivô de liquidez (barras p/ cada lado)", minval=2)
+confirmLen = input.int(3,     "Validação: fechar além do extremo de N barras", minval=1)
+expireBars = input.int(12,    "Captura vale por (barras)", minval=1)
+rrMult     = input.float(3.0, "Alvo (múltiplo do risco)", step=0.5, minval=1.0)
+riskUsd    = input.float(500, "Risco por trade (USD)", step=50)
+useSession = input.bool(true, "Operar só na janela Londres+NY?")
+sess       = input.session("04:00-13:00", "Janela (horário de Brasília)")
+
+inSession = not useSession or not na(time(timeframe.period, sess, "America/Sao_Paulo"))
+bgcolor(useSession and inSession ? color.new(color.blue, 96) : na, title="Janela de operação")
+
+// ── Liquidez: últimos pivôs confirmados (topos/fundos com stops) ───
+ph = ta.pivothigh(high, pivLen, pivLen)
+pl = ta.pivotlow(low, pivLen, pivLen)
+var float liqHigh = na
+var float liqLow  = na
+if not na(ph)
+    liqHigh := ph
+if not na(pl)
+    liqLow := pl
+
+plot(liqHigh, "Liquidez de topo", color=color.new(color.red, 45), style=plot.style_linebr)
+plot(liqLow,  "Liquidez de fundo", color=color.new(color.green, 45), style=plot.style_linebr)
+
+// ── Captura: máxima/mínima fura o pivô e o candle fecha de volta ───
+sweepTop = not na(liqHigh) and high > liqHigh and close < liqHigh
+sweepBot = not na(liqLow)  and low  < liqLow  and close > liqLow
+
+var float capHi    = na  // extremo da captura de topo → take loss do short
+var int   capHiBar = na
+var float capLo    = na  // extremo da captura de fundo → take loss do long
+var int   capLoBar = na
+
+if sweepTop
+    capHi    := high
+    capHiBar := bar_index
+    liqHigh  := na  // liquidez consumida — espera formar outro pivô
+if sweepBot
+    capLo    := low
+    capLoBar := bar_index
+    liqLow   := na
+
+// Captura velha demais perde validade
+if not na(capHi) and bar_index - capHiBar > expireBars
+    capHi := na
+if not na(capLo) and bar_index - capLoBar > expireBars
+    capLo := na
+
+plotshape(sweepTop, "Captura de topo",  shape.triangledown, location.abovebar, color.red,   text="sweep", textcolor=color.red)
+plotshape(sweepBot, "Captura de fundo", shape.triangleup,   location.belowbar, color.green, text="sweep", textcolor=color.green)
+
+// ── Validação: micro-rompimento na direção oposta à captura ───────
+brokeDown = close < ta.lowest(low, confirmLen)[1]
+brokeUp   = close > ta.highest(high, confirmLen)[1]
+
+flat = strategy.position_size == 0
+shortValid = flat and inSession and not na(capHi) and brokeDown
+longValid  = flat and inSession and not na(capLo) and brokeUp
+
+// ── Entrada com risco fixo em USD, stop atrás da captura, alvo 3R ──
+if shortValid
+    dist = capHi - close
+    if dist > 0
+        qty = riskUsd / dist
+        strategy.entry("Short", strategy.short, qty=qty, comment="captura+validação")
+        strategy.exit("Short 3R", "Short", stop=capHi, limit=close - rrMult * dist)
+        capHi := na
+if longValid
+    dist = close - capLo
+    if dist > 0
+        qty = riskUsd / dist
+        strategy.entry("Long", strategy.long, qty=qty, comment="captura+validação")
+        strategy.exit("Long 3R", "Long", stop=capLo, limit=close + rrMult * dist)
+        capLo := na
