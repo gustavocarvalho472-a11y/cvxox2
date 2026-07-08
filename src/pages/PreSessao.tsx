@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CalendarDays, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import { fmtBrt } from '../lib/calendar'
 import { fetchDailyCloses, fetchEurDailyFree, fetchGoldDailyFree } from '../lib/marketData'
 import { computeAutoBias } from '../lib/autoBias'
 import type { AutoBiasResult } from '../lib/autoBias'
+import { buildMacroSummary } from '../lib/macroSummary'
 
 interface Props {
   app: AppState
@@ -43,6 +44,12 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [briefingSent, setBriefingSent] = useState(false)
+
+  // Resumo do dia direto no painel — derivado do viés + calendário, sem chat
+  const summary = useMemo(
+    () => (autoBias ? buildMacroSummary(autoBias, calendar.next24h) : null),
+    [autoBias, calendar.next24h],
+  )
 
   const setReading = (driverId: string, optionId: string) => {
     const base = checklist ?? { date: todayStr(), readings: {}, note: '' }
@@ -121,8 +128,9 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
                 </div>
               ) : (
                 <p className="mt-1 text-sm text-zinc-400">
-                  Aperte o botão: o app lê tendência, momentum, dólar, regime de correlação e o
-                  calendário{agentReady ? ' — e o agente já escreve o briefing do dia' : ''}.
+                  Aperte o botão: o app lê tendência, momentum, dólar, correlação e o calendário e
+                  escreve o resumo do dia aqui mesmo — com o que cada notícia pode fazer com o ouro
+                  {agentReady ? ' (e o agente ainda complementa no chat)' : ''}.
                 </p>
               )}
               {autoBias && (
@@ -145,6 +153,42 @@ export function PreSessao({ app, agentReady, onSendAgent }: Props) {
               {agentReady ? 'Viés + briefing do dia' : autoBias ? 'Atualizar agora' : 'Calcular viés agora'}
             </Button>
           </div>
+
+          {summary && (
+            <div className="mt-3 glass-inset rounded-2xl p-3.5 text-[13px] leading-relaxed text-zinc-200">
+              <div className="text-[11px] font-medium uppercase tracking-widest text-zinc-500">
+                Resumo do dia
+              </div>
+              <p className={cn('mt-1 font-semibold', biasTone.text)}>{summary.headline}</p>
+              <p className="mt-1 text-zinc-300">{summary.dollarLine}</p>
+              <p className="text-zinc-300">{summary.correlationLine}</p>
+              {summary.eventsIntro ? (
+                <div className="mt-2 border-t border-zinc-700/50 pt-2">
+                  <p className="text-zinc-300">📅 {summary.eventsIntro}</p>
+                  <ul className="mt-1.5 space-y-1.5">
+                    {summary.eventReadings.map(ev => (
+                      <li key={ev.key} className="flex gap-2">
+                        <span className="shrink-0 font-semibold tabular-nums text-amber-300">
+                          {ev.timeBrt}
+                        </span>
+                        <span>
+                          <span className="font-medium text-zinc-100">{ev.title}</span>
+                          {ev.forecast ? (
+                            <span className="text-zinc-500"> (prev. {ev.forecast})</span>
+                          ) : null}
+                          <span className="text-zinc-400"> — {ev.line}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="mt-2 border-t border-zinc-700/50 pt-2 text-zinc-400">
+                  📅 Sem notícias relevantes nas próximas 24h — o técnico manda.
+                </p>
+              )}
+            </div>
+          )}
 
           {autoBias && (
             <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
