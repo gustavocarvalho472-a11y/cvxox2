@@ -154,7 +154,12 @@ export function LiquidityChart({ pools, height = 280 }: Props) {
         time: (m.t - BRT_SHIFT) as UTCTimestamp,
         position: m.side === 'buy' ? 'belowBar' : 'aboveBar',
         shape: 'circle',
-        color: m.side === 'buy' ? 'rgba(59,130,246,0.8)' : 'rgba(239,68,68,0.8)',
+        // âmbar = venda exausta no fundo (padrão de reversão validado no backtest)
+        color: m.exhaustion
+          ? 'rgba(245,158,11,0.95)'
+          : m.side === 'buy'
+            ? 'rgba(59,130,246,0.8)'
+            : 'rgba(239,68,68,0.8)',
         size: Math.min(3, Math.max(1, Math.round(m.strength - 0.8))),
       }))
       createSeriesMarkers(candleSeries, markers)
@@ -182,7 +187,8 @@ export function LiquidityChart({ pools, height = 280 }: Props) {
       <p className="px-2 pb-1 pt-1.5 text-[10px] leading-snug text-zinc-600">
         PAXG ≈ XAUUSD (Coinbase) · 30min · horário de Brasília · linhas tracejadas = liquidez
         mapeada (topos/fundos expressivos e duplos) · 🔵 = agressão compradora, 🔴 = vendedora
-        (volume ≥1,8× a média; bolha maior = mais forte) · barras laterais = perfil de volume por
+        (volume ≥1,8× a média; bolha maior = mais forte) · 🟡 = venda EXAUSTA no fundo — no
+        backtest de 1 ano, 58% de chance de alta em 4h · barras laterais = perfil de volume por
         preço (azul = POC; faixa mais forte = área de valor 70%)
       </p>
     </div>
